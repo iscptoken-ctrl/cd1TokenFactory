@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BNB MultiSender</title>
+<title>BNB Token Factory</title>
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <style>
   :root {
@@ -36,14 +36,17 @@
   button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
     background: var(--soft); color: var(--text); padding: 9px 14px; }
   button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button.small { padding: 6px 10px; font-size: 13px; }
   button:disabled { opacity: .45; cursor: not-allowed; }
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex-wrap: wrap; }
   .seg button { border: 0; border-radius: 0; background: transparent; }
   .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
-  input, textarea { width: 100%; font: inherit; color: var(--text); background: var(--soft);
+  input { width: 100%; font: inherit; color: var(--text); background: var(--soft);
     border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-  textarea { font-family: var(--mono); font-size: 13px; min-height: 180px; resize: vertical; }
   label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  @media (max-width: 520px) { .two { grid-template-columns: 1fr; } }
+  .field-err { color: var(--err); font-size: 12px; margin-top: 4px; min-height: 0; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .muted { color: var(--muted); font-size: 13px; }
   .mono { font-family: var(--mono); font-size: 13px; word-break: break-all; }
@@ -53,17 +56,24 @@
   .box.warn { background: color-mix(in srgb, var(--warn) 12%, transparent); }
   .box.ok { background: color-mix(in srgb, var(--ok) 10%, transparent); }
   .help { background: var(--soft); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--muted); margin-top: 10px; }
-  .help code { font-family: var(--mono); color: var(--text); font-size: 12px; }
+  .help b { color: var(--text); }
   .grid { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 14px; }
   .grid div:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
   .grid .total { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
-  ul.errs { margin: 6px 0 0; padding-left: 18px; max-height: 160px; overflow: auto; }
-  .batch { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
-  .batch:first-child { border-top: 0; }
+  .guarantees { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 4px; }
+  .guarantees div { background: var(--soft); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+  .tok { border-top: 1px solid var(--line); padding: 12px 0; }
+  .tok:first-child { border-top: 0; padding-top: 0; }
+  .tok-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .tag.tax { color: var(--warn); border-color: var(--warn); }
+  .manage { background: var(--soft); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+  .manage h4 { margin: 6px 0; font-size: 13px; }
+  .manage .row input { flex: 1; min-width: 110px; }
   a { color: var(--accent); }
   .hidden { display: none !important; }
   footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 20px; }
-  .eco { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .eco { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
   .eco a { display: block; text-decoration: none; color: var(--text); background: var(--soft);
     border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
   .eco a:hover { border-color: var(--accent); }
@@ -72,9 +82,10 @@
   .admin h3 { margin: 16px 0 6px; font-size: 14px; }
   .admin .row input { flex: 1; min-width: 160px; }
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; padding: 16px; z-index: 50; }
-  .modal { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; max-width: 460px; width: 100%; }
+  .modal { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; max-width: 480px; width: 100%; max-height: calc(100vh - 32px); overflow: auto; }
   .modal h3 { margin: 0 0 10px; }
   .modal .grid { margin: 10px 0; }
+  .modal .grid div:nth-child(even) { word-break: break-all; }
   .modal label.chk { display: flex; gap: 8px; align-items: flex-start; color: var(--text); font-size: 14px; margin: 12px 0 0; }
   .modal label.chk input { width: auto; margin-top: 3px; }
   button.danger { background: var(--err); border-color: var(--err); color: #fff; font-weight: 600; }
@@ -83,14 +94,13 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>BNB <span>MultiSender</span></h1>
+    <h1>BNB <span>Token Factory</span></h1>
     <button id="btnConnect" class="primary">Connect Wallet</button>
   </header>
-  <p class="sub">Send BNB or tokens to hundreds of addresses in a single transaction. Low, capped fee: <span id="feeInfo">loading…</span></p>
+  <p class="sub">Create your own BEP-20 token on BNB Chain in one transaction. No coding. Flat fee: <span id="feeInfo">loading…</span></p>
 
   <div id="cfgWarn" class="box err hidden">Contract address is not set yet. Update the <code>CONFIG.CONTRACT</code> line in this file.</div>
 
-  <!-- Wallet status -->
   <div id="walletBox" class="card hidden">
     <div class="row" style="justify-content:space-between">
       <div><div class="muted">Connected wallet</div><div id="acct" class="mono"></div></div>
@@ -107,89 +117,110 @@
     </div>
   </div>
 
-  <!-- 1: What to send -->
+  <!-- Guarantees -->
   <div class="card">
-    <div class="step"><span class="num">1</span>What do you want to send?</div>
-    <div class="seg" id="segAsset">
-      <button data-v="bnb" class="on">BNB</button>
-      <button data-v="token">Token (BEP-20)</button>
-    </div>
-    <div id="tokenArea" class="hidden">
-      <label for="tokenAddr">Token contract address</label>
-      <input id="tokenAddr" placeholder="0x… (the address on the token's BscScan page)" autocomplete="off" spellcheck="false">
-      <div id="tokenInfo" class="muted" style="margin-top:8px"></div>
+    <div class="step">Every token made here is safe by design</div>
+    <div class="guarantees">
+      <div>✓ Fixed supply: no one can ever mint more</div>
+      <div>✓ No blacklist, no pause, no trading lock</div>
+      <div>✓ Tax can never exceed 5%</div>
+      <div>✓ Tax can only be lowered, never raised</div>
+      <div>✓ No tax exemptions: the owner pays the same tax</div>
+      <div>✓ Verifiable on-chain as a Factory token</div>
     </div>
   </div>
 
-  <!-- 2: Recipients -->
+  <!-- 1: Token details -->
   <div class="card">
-    <div class="step"><span class="num">2</span>Enter recipients</div>
-    <div class="seg" id="segAmount">
-      <button data-v="diff" class="on">Different amount each</button>
-      <button data-v="equal">Same amount for all</button>
+    <div class="step"><span class="num">1</span>Token details</div>
+    <div class="two">
+      <div>
+        <label for="inName">Token name</label>
+        <input id="inName" placeholder="e.g. Moon Cat" maxlength="40" autocomplete="off">
+        <div class="field-err" id="errName"></div>
+      </div>
+      <div>
+        <label for="inSymbol">Symbol (ticker)</label>
+        <input id="inSymbol" placeholder="e.g. MCAT" maxlength="11" autocomplete="off" spellcheck="false">
+        <div class="field-err" id="errSymbol"></div>
+      </div>
     </div>
-
-    <div id="equalArea" class="hidden">
-      <label for="equalAmount">Amount per recipient</label>
-      <input id="equalAmount" placeholder="e.g. 10 or 0.5" inputmode="decimal" autocomplete="off">
-    </div>
-
-    <label for="list" id="listLabel">One recipient per line: address, amount</label>
-    <textarea id="list" spellcheck="false" placeholder="0x1111111111111111111111111111111111111111, 1.5
-0x2222222222222222222222222222222222222222, 20
-0x3333333333333333333333333333333333333333; 0.25"></textarea>
-
-    <div class="row" style="margin-top:10px">
-      <button id="btnFile">Upload CSV / TXT</button>
-      <input type="file" id="file" accept=".csv,.txt,text/csv,text/plain" class="hidden">
-      <button id="btnTemplate">Download sample CSV</button>
-      <button id="btnClean" class="hidden">Remove invalid lines</button>
-    </div>
-
-    <div class="help" id="helpDiff">
-      <b>How to enter</b><br>
-      • Write the address first, then the amount, one recipient per line. Separate them with a comma, semicolon, space or tab.<br>
-      • Use a dot for decimals: <code>0.5</code>. Do not use thousand separators: write <code>1000</code>, not <code>1,000</code>.<br>
-      • In Excel, put addresses in column A and amounts in column B, use <i>Save As → CSV</i>, then choose the file with “Upload CSV / TXT”. A header row is skipped automatically.<br>
-      • Amounts are in token units (e.g. write <code>10</code> to send 10 USDT).
-    </div>
-    <div class="help hidden" id="helpEqual">
-      <b>How to enter</b><br>
-      • Enter one amount above, then paste one address per line below.<br>
-      • Anything after the address on a line is ignored.<br>
-      • You can copy a column from Excel and paste it here directly.
-    </div>
-
-    <div id="checkOut"></div>
+    <label for="inSupply">Total supply</label>
+    <input id="inSupply" placeholder="e.g. 1000000000" inputmode="numeric" autocomplete="off">
+    <div class="field-err" id="errSupply"></div>
+    <div class="muted" id="supplyHint">Whole tokens, digits only. 18 decimals. The full supply is sent to your wallet.</div>
   </div>
 
-  <!-- 3: Summary and send -->
+  <!-- 2: Type -->
   <div class="card">
-    <div class="step"><span class="num">3</span>Review and send</div>
-    <div id="summary" class="muted">The summary appears here once you enter recipients.</div>
-    <div id="sendMsg"></div>
+    <div class="step"><span class="num">2</span>Token type</div>
+    <div class="seg" id="segType">
+      <button data-v="standard" class="on">Standard (no tax)</button>
+      <button data-v="tax">With buy/sell tax</button>
+    </div>
+    <div id="stdHelp" class="help">
+      A plain token with no owner and no special functions. Nobody, including you, can change anything after creation.
+    </div>
+    <div id="taxArea" class="hidden">
+      <div class="two">
+        <div>
+          <label for="inBuy">Buy tax (%)</label>
+          <input id="inBuy" value="0" inputmode="decimal" autocomplete="off">
+          <div class="field-err" id="errBuy"></div>
+        </div>
+        <div>
+          <label for="inSell">Sell tax (%)</label>
+          <input id="inSell" value="0" inputmode="decimal" autocomplete="off">
+          <div class="field-err" id="errSell"></div>
+        </div>
+      </div>
+      <label for="inTaxWallet">Tax wallet (receives the tax)</label>
+      <input id="inTaxWallet" placeholder="0x… (defaults to your wallet)" spellcheck="false" autocomplete="off">
+      <div class="field-err" id="errTaxWallet"></div>
+      <div class="help">
+        <b>How the tax works</b><br>
+        • Maximum 5% for buys and 5% for sells, steps of 0.01%. You can lower it later, but never raise it.<br>
+        • Tax is charged only on buys and sells in the token's <b>PancakeSwap V2 BNB pair</b>, which is created automatically with your token. Wallet-to-wallet transfers are tax-free.<br>
+        • The tax is paid in your token and sent directly to the tax wallet (it is not swapped to BNB).<br>
+        • Adding the first liquidity is tax-free. Add it on PancakeSwap <b>V2</b>.
+      </div>
+    </div>
+  </div>
+
+  <!-- 3: Review and create -->
+  <div class="card">
+    <div class="step"><span class="num">3</span>Review and create</div>
+    <div id="summary" class="muted">Fill in the details above to see the summary.</div>
+    <div id="createMsg"></div>
     <div class="row" style="margin-top:14px">
-      <button id="btnApprove" class="primary hidden">1) Approve token spending</button>
-      <button id="btnSend" class="primary" disabled>Send</button>
-    </div>
-    <div id="approveNote" class="muted hidden" style="margin-top:8px">
-      Token sending takes two steps: first you allow the contract to spend <b>only the amount of this send</b>, then you send. No unlimited approval is requested.
+      <button id="btnCreate" class="primary" disabled>Create token</button>
     </div>
   </div>
 
-  <!-- 4: Result -->
+  <!-- Result -->
   <div class="card hidden" id="resultCard">
-    <div class="step"><span class="num">4</span>Send status</div>
-    <div id="batches"></div>
-    <p class="muted" style="margin-bottom:0">Each batch is a separate transaction. If a batch fails, nobody in that batch receives anything. Press “Send” again to continue with the remaining batches; completed batches are not sent twice.</p>
+    <div class="step"><span class="num">✓</span>Your token is live</div>
+    <div id="result"></div>
   </div>
 
-  <!-- Ecosystem links -->
+  <!-- My tokens -->
+  <div class="card hidden" id="myCard">
+    <div class="step">My tokens</div>
+    <div id="myTokens" class="muted">Loading…</div>
+  </div>
+
+  <!-- Recent -->
+  <div class="card">
+    <div class="step">Recently created</div>
+    <div id="recent" class="muted">Loading…</div>
+  </div>
+
+  <!-- Ecosystem -->
   <div class="card">
     <div class="step">CD1 ecosystem</div>
     <div class="eco">
-      <a href="/token-factory/" target="_blank" rel="noopener">
-        <b>Token Factory</b><br><span class="muted">Create your own BEP-20 token for a flat fee.</span>
+      <a id="ecoMs" href="#" target="_blank" rel="noopener" class="hidden">
+        <b>MultiSender</b><br><span class="muted">Airdrop your token to hundreds of wallets at once.</span>
       </a>
       <a href="https://bnbp2p.vercel.app" target="_blank" rel="noopener">
         <b>CD1 Exchange</b><br><span class="muted">Trade your new token peer-to-peer.</span>
@@ -200,27 +231,27 @@
     </div>
   </div>
 
-  <!-- Admin panel: visible only to the contract owner wallet -->
+  <!-- Admin panel -->
   <div class="card admin hidden" id="adminCard">
     <div class="step">Admin panel <span class="muted" style="font-weight:400">(visible to owner only)</span></div>
     <div class="grid" id="adminInfo"></div>
 
-    <h3>Fees</h3>
-    <div class="muted">Fees cannot exceed the hard-coded ceiling (max <span id="maxPer"></span> BNB per recipient, max <span id="maxCap"></span> BNB per transaction).</div>
+    <h3>Creation fee</h3>
+    <div class="muted">The fee can only be lowered, never raised.</div>
     <div class="row" style="margin-top:8px">
-      <input id="inPer" placeholder="Per recipient (BNB)" inputmode="decimal">
-      <input id="inCap" placeholder="Cap per transaction (BNB)" inputmode="decimal">
-      <button id="btnSetFees">Update fees</button>
+      <input id="inFee" placeholder="New fee (BNB)" inputmode="decimal">
+      <button id="btnLowerFee">Lower fee</button>
     </div>
 
-    <h3>Fee receiver wallet</h3>
-    <div class="row">
-      <input id="inReceiver" placeholder="0x…" spellcheck="false">
-      <button id="btnSetReceiver">Change</button>
+    <h3>Rescue tokens sent here by mistake</h3>
+    <div class="muted">The factory never holds user funds, so any token found here was sent by mistake. It goes to the owner wallet so it can be returned.</div>
+    <div class="row" style="margin-top:8px">
+      <input id="inRescue" placeholder="Token address 0x…" spellcheck="false">
+      <button id="btnRescue">Check &amp; rescue</button>
     </div>
 
     <h3>Transfer ownership</h3>
-    <div class="muted">Single step: if you enter a wrong address, control of the contract cannot be recovered.</div>
+    <div class="muted">Single step: if you enter a wrong address, control of the factory cannot be recovered.</div>
     <div class="row" style="margin-top:8px">
       <input id="inOwner" placeholder="New owner 0x…" spellcheck="false">
       <button id="btnTransfer" class="danger">Transfer</button>
@@ -229,249 +260,181 @@
   </div>
 
   <footer>
-    Contract: <a id="contractLink" target="_blank" rel="noopener"></a><br>
-    The fee ceiling is hard-coded in the contract and can never be raised. The contract holds no funds and never deducts from what you send.
+    Factory contract: <a id="contractLink" target="_blank" rel="noopener"></a><br>
+    The fee goes straight to the owner wallet; the factory holds no funds. Token contracts are verified-source templates and cannot be changed after creation.
   </footer>
 </div>
 
 <script>
 /* ================== SETTINGS ================== */
 const CONFIG = {
-  CONTRACT: "0x202c0103aBD508CAE1D945B6124e0631a5eDAB41", // BSC mainnet, verified
+  CONTRACT: "0x60FD20b53df5e1eD6757C385AcD07987f8285DB6", // BSC mainnet, verified
   CHAIN_ID: 56,
   CHAIN_HEX: "0x38",
   RPC: "https://bsc-dataseed.bnbchain.org",
   EXPLORER: "https://bscscan.com",
-  BATCH: 400,               // same as MAX_RECIPIENTS in the contract
-  TX_GAS_SAFE: 15000000,    // BSC per-transaction gas limit is 16,777,216; keep a safety margin
-  GAS_PER_BNB: 37000,       // estimated gas per recipient, for the summary only
-  GAS_PER_TOKEN: 29000,
-  GAS_BASE: 60000
+  PANCAKE_ADD_LP: "https://pancakeswap.finance/v2/add/BNB/",   // + token address
+  MULTISENDER_URL: "https://cd1tokenfactory.vercel.app/", // MultiSender site link (leave empty to hide)
+  CD1_EXCHANGE_URL: "https://bnbp2p.vercel.app",
+  RECENT_COUNT: 8
 };
 /* ============================================= */
 
-const MS_ABI = [
-  "function feeFor(uint256 recipientCount) view returns (uint256)",
-  "function feePerRecipient() view returns (uint256)",
-  "function feeCap() view returns (uint256)",
-  "function sendBNB(address[] to, uint256[] amounts) payable",
-  "function sendBNBEqual(address[] to, uint256 amountEach) payable",
-  "function sendToken(address token, address[] to, uint256[] amounts) payable",
-  "function sendTokenEqual(address token, address[] to, uint256 amountEach) payable",
-  "error LengthMismatch()", "error TooManyRecipients()", "error ZeroAddress()", "error NotEnoughBNB()",
-  "error BNBTransferFailed(address to)", "error TokenTransferFailed(address to)",
-  "function owner() view returns (address)", "function feeReceiver() view returns (address)",
-  "function MAX_FEE_PER_RECIPIENT() view returns (uint256)", "function MAX_FEE_CAP() view returns (uint256)",
-  "function setFees(uint256 newFeePerRecipient, uint256 newFeeCap)",
-  "function setFeeReceiver(address newReceiver)",
+const FACTORY_ABI = [
+  "function creationFee() view returns (uint256)",
+  "function MAX_SUPPLY() view returns (uint256)",
+  "function owner() view returns (address)",
+  "function totalTokens() view returns (uint256)",
+  "function allTokens(uint256) view returns (address)",
+  "function isTaxToken(address) view returns (bool)",
+  "function tokensByCreator(address) view returns (address[])",
+  "function createStandardToken(string name, string symbol, uint256 supplyWholeTokens) payable returns (address)",
+  "function createTaxToken(string name, string symbol, uint256 supplyWholeTokens, uint16 buyTaxBps, uint16 sellTaxBps, address taxWallet) payable returns (address)",
+  "function lowerFee(uint256 newFee)",
+  "function rescueToken(address token, uint256 amount)",
   "function transferOwnership(address newOwner)",
-  "error NotOwner()", "error AboveCeiling()"
+  "event TokenCreated(address indexed token, address indexed creator, bool taxed, string name, string symbol, uint256 totalSupply, uint16 buyTaxBps, uint16 sellTaxBps)",
+  "error WrongFee()", "error FeeCanOnlyDecrease()", "error BadSupply()", "error EmptyNameOrSymbol()", "error TransferFailed()",
+  "error OwnableUnauthorizedAccount(address account)", "error OwnableInvalidOwner(address owner)", "error TaxTooHigh()", "error ZeroAddress()"
+];
+const TAX_ABI = [
+  "function name() view returns (string)", "function symbol() view returns (string)",
+  "function totalSupply() view returns (uint256)", "function balanceOf(address) view returns (uint256)",
+  "function owner() view returns (address)", "function pair() view returns (address)",
+  "function buyTaxBps() view returns (uint16)", "function sellTaxBps() view returns (uint16)",
+  "function taxWallet() view returns (address)",
+  "function lowerTaxes(uint16 newBuyTaxBps, uint16 newSellTaxBps)",
+  "function setTaxWallet(address newTaxWallet)",
+  "function transferOwnership(address newOwner)",
+  "function renounceOwnership()",
+  "error TaxCanOnlyDecrease()", "error ZeroAddress()", "error TaxTooHigh()",
+  "error OwnableUnauthorizedAccount(address account)", "error OwnableInvalidOwner(address owner)"
 ];
 const ERC20_ABI = [
   "function name() view returns (string)", "function symbol() view returns (string)",
-  "function decimals() view returns (uint8)", "function balanceOf(address) view returns (uint256)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)"
+  "function totalSupply() view returns (uint256)", "function balanceOf(address) view returns (uint256)"
 ];
 
-const MS_IFACE = new ethers.Interface(MS_ABI);
+const IFACES = [new ethers.Interface(FACTORY_ABI), new ethers.Interface(TAX_ABI)];
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ZERO = "0x0000000000000000000000000000000000000000";
 const configured = CONFIG.CONTRACT.toLowerCase() !== ZERO;
+const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
 
 const read = new ethers.JsonRpcProvider(CONFIG.RPC, CONFIG.CHAIN_ID, { staticNetwork: true });
-const msRead = new ethers.Contract(CONFIG.CONTRACT, MS_ABI, read);
+const fRead = new ethers.Contract(CONFIG.CONTRACT, FACTORY_ABI, read);
 
-const S = {
-  provider: null, signer: null, account: null, bnbBalance: null,
-  asset: "bnb", amountMode: "diff",
-  token: null,          // {address, name, symbol, decimals, balance, contract}
-  plan: null,           // computed send plan
-  busy: false
-};
+const S = { provider: null, signer: null, account: null, bnbBalance: null, type: "standard",
+  fee: null, maxSupply: null, form: null, busy: false };
 
 function fmt(v, dec = 18, max = 6) {
   const s = ethers.formatUnits(v, dec);
   const [i, f = ""] = s.split(".");
   const ff = f.slice(0, max).replace(/0+$/, "");
-  return Number(i).toLocaleString("en-US") + (ff ? "." + ff : "");
+  return BigInt(i).toLocaleString("en-US") + (ff ? "." + ff : "");
 }
-const sym = () => (S.asset === "bnb" ? "BNB" : (S.token?.symbol || "token"));
-const decs = () => (S.asset === "bnb" ? 18 : S.token?.decimals);
+const pct = (bps) => (Number(bps) / 100).toLocaleString("en-US", { maximumFractionDigits: 2 }) + "%";
 
-/* ---------- amount parsing ---------- */
-function parseAmount(str, dec) {
-  let a = String(str).trim().replace(/[\s,;]+$/, "");
-  if (!a) return { err: "Amount is missing" };
-  // A comma could be a thousand separator ("1,000") or a decimal mark ("0,5"); refuse it instead of guessing.
-  if (a.includes(",")) return { err: "Do not use commas in amounts. Use a dot for decimals (0.5) and no thousand separators (1000)" };
-  if (!/^(\d+\.?\d*|\.\d+)$/.test(a)) return { err: "Invalid amount" };
-  try {
-    const v = ethers.parseUnits(a, dec);
-    if (v === 0n) return { err: "Amount cannot be 0" };
-    return { v };
-  } catch { return { err: `Too many decimal places (max ${dec})` }; }
+/* ---------- form validation ---------- */
+function parsePct(str) {
+  const s = String(str).trim();
+  if (s === "") return { v: 0 };
+  if (s.includes(",")) return { err: "Use a dot for decimals (e.g. 2.5)" };
+  if (!/^\d+(\.\d{0,2})?$/.test(s)) return { err: "Enter a number with at most 2 decimals" };
+  const bps = Math.round(parseFloat(s) * 100);
+  if (bps > 500) return { err: "Maximum is 5%" };
+  return { v: bps };
 }
 
-/* ---------- list parsing ---------- */
-function parseList(text, equal, dec) {
-  const rows = [], errors = [], seen = new Map();
-  text.split(/\r?\n/).forEach((raw, idx) => {
-    const ln = idx + 1;
-    const line = raw.replace(/["'​﻿]/g, "").trim();
-    if (!line) return;
-    if (!/^0x/i.test(line)) {
-      if (rows.length === 0 && errors.length === 0) return; // header row
-      errors.push({ ln, raw, msg: "Line must start with an address beginning with 0x" }); return;
-    }
-    const addrStr = line.slice(0, 42);
-    if (line.length > 42 && /[0-9a-z]/i.test(line[42])) { errors.push({ ln, raw, msg: "Address is too long" }); return; }
-    let addr;
-    try { addr = ethers.getAddress(addrStr); } catch { errors.push({ ln, raw, msg: "Invalid address (missing or wrong characters)" }); return; }
-    if (addr === ZERO) { errors.push({ ln, raw, msg: "The zero address cannot be used" }); return; }
-    if (configured && addr.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { errors.push({ ln, raw, msg: "Cannot send to the MultiSender contract itself" }); return; }
-    if (seen.has(addr)) { errors.push({ ln, raw, msg: `Duplicate address (same as line ${seen.get(addr)})` }); return; }
-    let amount = null;
-    if (!equal) {
-      const r = parseAmount(line.slice(42).replace(/^[\s,;]+/, ""), dec);
-      if (r.err) { errors.push({ ln, raw, msg: r.err }); return; }
-      amount = r.v;
-    }
-    seen.set(addr, ln);
-    rows.push({ ln, raw, addr, amount });
-  });
-  return { rows, errors };
-}
-
-/* ---------- analysis and summary ---------- */
-let analyzeTimer = null;
-function scheduleAnalyze() { clearTimeout(analyzeTimer); analyzeTimer = setTimeout(analyze, 250); }
-
-async function analyze() {
-  if (S.busy) return;
-  S.plan = null;
-  $("sendMsg").innerHTML = "";
-  $("resultCard").classList.add("hidden");
-  const out = $("checkOut"), sum = $("summary");
-  const text = $("list").value;
-  const equal = S.amountMode === "equal";
-  updateButtons();
-
-  if (!text.trim()) { out.innerHTML = ""; $("btnClean").classList.add("hidden"); sum.innerHTML = "The summary appears here once you enter recipients."; sum.className = "muted"; return; }
-  if (S.asset === "token" && !S.token) { out.innerHTML = `<div class="box warn">Enter a valid token address first.</div>`; sum.innerHTML = ""; return; }
-
-  const dec = decs();
-  const { rows, errors } = parseList(text, equal, dec);
-  let amountEach = null, amountErr = null;
-  if (equal) {
-    const r = parseAmount($("equalAmount").value, dec);
-    if (r.err) amountErr = $("equalAmount").value.trim() ? r.err : "Enter the amount to send to each recipient";
-    else amountEach = r.v;
+function readForm() {
+  const e = {}, f = {};
+  f.name = $("inName").value.trim();
+  f.symbol = $("inSymbol").value.trim();
+  const supplyRaw = $("inSupply").value.trim().replace(/[\s_]/g, "");
+  if (!f.name) e.name = "Required";
+  else if (f.name.length > 40) e.name = "At most 40 characters";
+  if (!f.symbol) e.symbol = "Required";
+  else if (!/^[A-Za-z0-9$._-]{1,11}$/.test(f.symbol)) e.symbol = "1–11 letters or digits, no spaces";
+  if (!supplyRaw) e.supply = "Required";
+  else if (/[,.]/.test(supplyRaw)) e.supply = "Digits only, no commas or dots";
+  else if (!/^\d+$/.test(supplyRaw)) e.supply = "Digits only";
+  else {
+    f.supply = BigInt(supplyRaw);
+    if (f.supply === 0n) e.supply = "Must be greater than 0";
+    else if (S.maxSupply != null && f.supply > S.maxSupply) e.supply = `Maximum is ${fmt(S.maxSupply, 0)}`;
   }
-
-  // validation box
-  let html = "";
-  if (rows.length) html += `<div class="box ok">✓ ${rows.length} valid recipient${rows.length === 1 ? "" : "s"}</div>`;
-  if (errors.length) {
-    html += `<div class="box err"><b>${errors.length} line${errors.length === 1 ? " has a problem" : "s have problems"}</b> — fix ${errors.length === 1 ? "it" : "them"} or press “Remove invalid lines”:<ul class="errs">` +
-      errors.slice(0, 100).map((e) => `<li>Line ${e.ln}: ${esc(e.msg)} <span class="mono muted">${esc(e.raw.slice(0, 60))}</span></li>`).join("") +
-      (errors.length > 100 ? `<li>… and ${errors.length - 100} more lines</li>` : "") + `</ul></div>`;
+  f.taxed = S.type === "tax";
+  if (f.taxed) {
+    const b = parsePct($("inBuy").value), s = parsePct($("inSell").value);
+    if (b.err) e.buy = b.err; else f.buyBps = b.v;
+    if (s.err) e.sell = s.err; else f.sellBps = s.v;
+    const tw = $("inTaxWallet").value.trim();
+    if (tw) {
+      try { f.taxWallet = ethers.getAddress(tw); if (f.taxWallet === ZERO) e.taxWallet = "The zero address cannot be used"; }
+      catch { e.taxWallet = "Invalid address"; }
+    } else if (S.account) f.taxWallet = S.account;
+    else e.taxWallet = "Connect your wallet or enter an address";
   }
-  if (amountErr) html += `<div class="box warn">${esc(amountErr)}</div>`;
-  out.innerHTML = html;
-  $("btnClean").classList.toggle("hidden", errors.length === 0);
-
-  if (!rows.length || errors.length || amountErr) {
-    sum.className = "muted";
-    sum.innerHTML = errors.length ? "Fix the invalid lines before sending." : (rows.length ? "" : "No valid recipients.");
-    return;
-  }
-
-  // batches
-  const batches = [];
-  for (let i = 0; i < rows.length; i += CONFIG.BATCH) batches.push({ rows: rows.slice(i, i + CONFIG.BATCH), done: false, hash: null, status: "" });
-  const total = equal ? amountEach * BigInt(rows.length) : rows.reduce((a, r) => a + r.amount, 0n);
-
-  sum.className = "";
-  sum.innerHTML = `<span class="muted">Calculating…</span>`;
-  let fees = 0n, gasPrice = null;
-  try {
-    if (!configured) throw new Error("cfg");
-    for (const b of batches) { b.fee = await msRead.feeFor(b.rows.length); fees += b.fee; }
-  } catch { sum.innerHTML = `<div class="box err">Could not read the fee from the contract. Is the contract address and network correct?</div>`; return; }
-  try { gasPrice = (await read.getFeeData()).gasPrice; } catch {}
-  const perR = S.asset === "bnb" ? CONFIG.GAS_PER_BNB : CONFIG.GAS_PER_TOKEN;
-  const gasUnits = BigInt(rows.length * perR + batches.length * CONFIG.GAS_BASE);
-  const gasCost = gasPrice ? gasUnits * gasPrice : null;
-
-  S.plan = { rows, batches, equal, amountEach, total, fees, gasCost, asset: S.asset, token: S.token };
-  renderSummary();
+  return { f, e };
 }
 
-function renderSummary() {
-  const p = S.plan; if (!p) return;
-  const s = sym(), dec = decs();
-  const isBNB = p.asset === "bnb";
-  const needBNB = (isBNB ? p.total : 0n) + p.fees + (p.gasCost || 0n);
+let tm = null;
+function scheduleUpdate() { clearTimeout(tm); tm = setTimeout(updateSummary, 200); }
+
+async function updateSummary() {
+  const { f, e } = readForm();
+  const touched = (id) => $(id).value.trim() !== "";
+  $("errName").textContent = touched("inName") ? (e.name || "") : "";
+  $("errSymbol").textContent = touched("inSymbol") ? (e.symbol || "") : "";
+  $("errSupply").textContent = touched("inSupply") ? (e.supply || "") : "";
+  $("errBuy").textContent = e.buy || ""; $("errSell").textContent = e.sell || "";
+  $("errTaxWallet").textContent = touched("inTaxWallet") ? (e.taxWallet || "") : "";
+  $("supplyHint").textContent = f.supply && !e.supply
+    ? `= ${fmt(f.supply, 0)} tokens, all sent to your wallet. 18 decimals.`
+    : "Whole tokens, digits only. 18 decimals. The full supply is sent to your wallet.";
+  S.form = Object.keys(e).length ? null : f;
+
+  const sum = $("summary");
+  if (!S.form) { sum.className = "muted"; sum.innerHTML = "Fill in the details above to see the summary."; updateButtons(); return; }
+
+  let gasCost = null;
+  if (S.account && configured && S.fee != null) {
+    try {
+      const fac = new ethers.Contract(CONFIG.CONTRACT, FACTORY_ABI, read);
+      const gas = f.taxed
+        ? await fac.createTaxToken.estimateGas(f.name, f.symbol, f.supply, f.buyBps, f.sellBps, f.taxWallet, { value: S.fee, from: S.account })
+        : await fac.createStandardToken.estimateGas(f.name, f.symbol, f.supply, { value: S.fee, from: S.account });
+      const gp = (await read.getFeeData()).gasPrice;
+      if (gp) gasCost = gas * gp;
+    } catch {}
+  }
+  if (S.form !== f) return;
+  const need = (S.fee ?? 0n) + (gasCost ?? 0n);
   let h = `<div class="grid">
-    <div>Recipients</div><div>${p.rows.length.toLocaleString("en-US")}</div>
-    <div>Transactions (batches)</div><div>${p.batches.length}${p.batches.length > 1 ? ` <span class="muted">(max ${CONFIG.BATCH} recipients per transaction)</span>` : ""}</div>
-    ${p.equal ? `<div>Per recipient</div><div>${fmt(p.amountEach, dec)} ${esc(s)}</div>` : ""}
-    <div>Total to send</div><div>${fmt(p.total, dec)} ${esc(s)}</div>
-    <div>Service fee</div><div>${fmt(p.fees, 18, 8)} BNB</div>
-    <div>Estimated network fee (gas)</div><div>${p.gasCost != null ? "~" + fmt(p.gasCost, 18, 6) + " BNB" : "—"}</div>
-    <div class="total">BNB needed in wallet</div><div class="total">~${fmt(needBNB, 18, 6)} BNB</div>
-    ${!isBNB ? `<div>Tokens needed in wallet</div><div>${fmt(p.total, dec)} ${esc(s)}</div>` : ""}
+    <div>Name</div><div>${esc(f.name)}</div>
+    <div>Symbol</div><div>${esc(f.symbol)}</div>
+    <div>Total supply</div><div>${fmt(f.supply, 0)}</div>
+    <div>Type</div><div>${f.taxed ? "With tax" : "Standard (no tax)"}</div>
+    ${f.taxed ? `<div>Buy tax / Sell tax</div><div>${pct(f.buyBps)} / ${pct(f.sellBps)}</div>
+    <div>Tax wallet</div><div class="mono">${short(f.taxWallet)}</div>` : ""}
+    <div>Creation fee</div><div>${S.fee != null ? fmt(S.fee, 18, 8) + " BNB" : "—"}</div>
+    <div>Estimated network fee (gas)</div><div>${gasCost != null ? "~" + fmt(gasCost, 18, 6) + " BNB" : "—"}</div>
+    <div class="total">BNB needed in wallet</div><div class="total">~${fmt(need, 18, 6)} BNB</div>
   </div>`;
-  if (!isBNB) h += `<div class="help">For tokens with a transfer tax, recipients receive the amount minus the token's own tax. MultiSender itself deducts nothing.</div>`;
-
-  // balance check
-  const warns = [];
-  if (S.account && S.bnbBalance != null && S.bnbBalance < needBNB) warns.push(`Insufficient BNB balance: you have ${fmt(S.bnbBalance)} BNB, ~${fmt(needBNB)} BNB is needed.`);
-  if (S.account && !isBNB && S.token?.balance != null && S.token.balance < p.total) warns.push(`Insufficient ${esc(s)} balance: you have ${fmt(S.token.balance, dec)}, ${fmt(p.total, dec)} is needed.`);
-  if (warns.length) h += `<div class="box err">${warns.join("<br>")}</div>`;
-  p.balanceOk = warns.length === 0;
-
-  $("summary").innerHTML = h;
+  if (f.taxed && f.buyBps === 0 && f.sellBps === 0) h += `<div class="box warn">Both taxes are 0%. Since tax can never be raised, this token would never have a tax. Choose “Standard” instead if that is what you want.</div>`;
+  if (S.account && S.bnbBalance != null && S.bnbBalance < need) h += `<div class="box err">Insufficient BNB balance: you have ${fmt(S.bnbBalance)} BNB, ~${fmt(need)} BNB is needed.</div>`;
+  S.balanceOk = !(S.account && S.bnbBalance != null && S.bnbBalance < need);
+  sum.className = ""; sum.innerHTML = h;
   updateButtons();
 }
 
-/* ---------- buttons ---------- */
 function updateButtons() {
-  const p = S.plan, isToken = S.asset === "token";
-  $("btnApprove").classList.toggle("hidden", !isToken);
-  $("approveNote").classList.toggle("hidden", !isToken);
-  const ready = !!p && configured && !S.busy;
-  if (!S.account) {
-    $("btnSend").textContent = "Connect wallet to send";
-    $("btnSend").disabled = !ready;
-    $("btnApprove").disabled = true;
-    return;
-  }
-  const remaining = p ? p.batches.filter((b) => !b.done).length : 0;
-  const started = p && p.batches.some((b) => b.done);
-  const restLabel = `Send remaining ${remaining} batch${remaining === 1 ? "" : "es"}`;
-  $("btnSend").textContent = (started && remaining === 0) ? "Sent ✓"
-    : isToken ? (started ? `2) ${restLabel}` : "2) Send") : (started ? restLabel : "Send");
-  const needApprove = isToken && p && p.allowanceOk === false;
-  $("btnApprove").disabled = !ready || !needApprove || !p.balanceOk;
-  $("btnSend").disabled = !ready || remaining === 0 || !p.balanceOk || (isToken && p.allowanceOk !== true);
-  if (isToken && p && p.allowanceOk === true) $("btnApprove").textContent = "1) Approved ✓";
-  else $("btnApprove").textContent = "1) Approve token spending";
-  if (isToken && p && S.account && p.allowanceOk === undefined) checkAllowance();
-}
-
-async function checkAllowance() {
-  const p = S.plan; if (!p || !S.token || !S.account) return;
-  p.allowanceOk = null;
-  try {
-    const need = p.batches.filter((b) => !b.done).reduce((a, b) => a + (p.equal ? p.amountEach * BigInt(b.rows.length) : b.rows.reduce((x, r) => x + r.amount, 0n)), 0n);
-    const al = await S.token.contract.allowance(S.account, CONFIG.CONTRACT);
-    if (S.plan !== p) return;
-    p.allowanceOk = al >= need;
-  } catch { p.allowanceOk = false; }
-  updateButtons();
+  const b = $("btnCreate");
+  if (!configured) { b.disabled = true; return; }
+  if (!S.account) { b.textContent = "Connect wallet to create"; b.disabled = !S.form || S.busy; return; }
+  b.textContent = "Create token";
+  b.disabled = !S.form || S.busy || S.fee == null || S.balanceOk === false;
 }
 
 /* ---------- wallet ---------- */
@@ -501,167 +464,217 @@ async function connect() {
     S.account = await S.signer.getAddress();
     $("acct").textContent = S.account;
     $("walletBox").classList.remove("hidden");
-    $("btnConnect").textContent = S.account.slice(0, 6) + "…" + S.account.slice(-4);
-    await refreshBalances();
-    if (S.token) S.token.contract = new ethers.Contract(S.token.address, ERC20_ABI, S.signer);
-    await refreshAdmin();
-    await analyze();
-  } catch (e) { showMsg(errMsg(e), "err"); }
+    $("btnConnect").textContent = short(S.account);
+    $("inTaxWallet").placeholder = `0x… (defaults to your wallet ${short(S.account)})`;
+    await refreshBalance();
+    await Promise.all([refreshAdmin(), loadMyTokens()]);
+    await updateSummary();
+  } catch (e) { msg("createMsg", esc(errMsg(e)), "err"); }
 }
-
-async function refreshBalances() {
+async function refreshBalance() {
   if (!S.account) return;
   try { S.bnbBalance = await read.getBalance(S.account); $("bnbBal").textContent = fmt(S.bnbBalance) + " BNB"; } catch {}
-  if (S.token) { try { S.token.balance = await S.token.read.balanceOf(S.account); showTokenInfo(); } catch {} }
 }
-
 if (window.ethereum?.on) {
   window.ethereum.on("accountsChanged", (a) => { if (!a.length) location.reload(); else connect(); });
   window.ethereum.on("chainChanged", () => { if (S.account) connect(); });
 }
 
-/* ---------- token ---------- */
-async function loadToken() {
-  const v = $("tokenAddr").value.trim();
-  S.token = null; $("tokenInfo").innerHTML = "";
-  if (!v) { analyze(); return; }
-  let addr;
-  try { addr = ethers.getAddress(v); } catch { $("tokenInfo").innerHTML = `<span class="err">Invalid address.</span>`; analyze(); return; }
-  $("tokenInfo").textContent = "Reading token…";
-  try {
-    const r = new ethers.Contract(addr, ERC20_ABI, read);
-    const [name, symbol, decimals] = await Promise.all([r.name(), r.symbol(), r.decimals()]);
-    if ($("tokenAddr").value.trim() !== v) return;
-    S.token = { address: addr, name, symbol, decimals: Number(decimals), read: r,
-      contract: new ethers.Contract(addr, ERC20_ABI, S.signer || read), balance: null };
-    if (S.account) S.token.balance = await r.balanceOf(S.account);
-    showTokenInfo();
-  } catch { $("tokenInfo").innerHTML = `<span class="err">No token found at this address on BNB Chain.</span>`; }
-  analyze();
-}
-function showTokenInfo() {
-  const t = S.token; if (!t) return;
-  $("tokenInfo").innerHTML = `<span class="ok">✓</span> <b>${esc(t.name)}</b> (${esc(t.symbol)}) · ${t.decimals} decimals` +
-    (t.balance != null ? ` · Your balance: <b>${fmt(t.balance, t.decimals)} ${esc(t.symbol)}</b>` : "");
-}
-
-/* ---------- approve ---------- */
-async function doApprove() {
-  const p = S.plan; if (!p || !S.signer) return;
+/* ---------- create ---------- */
+async function doCreate() {
+  if (!S.account) { await connect(); return; }
+  const f = S.form; if (!f) return;
+  const ok = await confirmBox({
+    title: "Create this token?",
+    rows: [["Name", f.name], ["Symbol", f.symbol], ["Total supply", fmt(f.supply, 0)],
+      ["Type", f.taxed ? "With tax" : "Standard (no tax)"],
+      ...(f.taxed ? [["Buy / Sell tax", `${pct(f.buyBps)} / ${pct(f.sellBps)}`], ["Tax wallet", f.taxWallet]] : []),
+      ["Creation fee", fmt(S.fee, 18, 8) + " BNB"]],
+    warning: f.taxed
+      ? "<b>Name, symbol and supply can never be changed.</b> The tax can only be lowered later, never raised."
+      : "<b>Nothing about this token can be changed after creation</b> (name, symbol, supply).",
+    okText: "Yes, create"
+  });
+  if (!ok) return;
   S.busy = true; updateButtons();
   try {
-    const need = p.batches.filter((b) => !b.done).reduce((a, b) => a + (p.equal ? p.amountEach * BigInt(b.rows.length) : b.rows.reduce((x, r) => x + r.amount, 0n)), 0n);
-    showMsg("Confirm the approval in your wallet…", "warn");
-    const tx = await S.token.contract.approve(CONFIG.CONTRACT, need);
-    showMsg(`Approval submitted, waiting… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
-    await tx.wait();
-    showMsg("Approval complete. Now press “Send”.", "ok");
-    p.allowanceOk = undefined;
-  } catch (e) { showMsg(errMsg(e), "err"); }
+    await ensureChain();
+    const fac = new ethers.Contract(CONFIG.CONTRACT, FACTORY_ABI, S.signer);
+    const fee = await fRead.creationFee();
+    const args = f.taxed ? [f.name, f.symbol, f.supply, f.buyBps, f.sellBps, f.taxWallet] : [f.name, f.symbol, f.supply];
+    const fn = f.taxed ? "createTaxToken" : "createStandardToken";
+    await fRead[fn].staticCall(...args, { value: fee, from: S.account });
+    msg("createMsg", "Confirm the transaction in your wallet…", "warn");
+    const tx = await fac[fn](...args, { value: fee });
+    msg("createMsg", `Transaction submitted, waiting… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
+    const rc = await tx.wait();
+    if (rc.status !== 1) throw new Error("Transaction failed.");
+    let token = null;
+    for (const l of rc.logs) { try { const p = IFACES[0].parseLog(l); if (p?.name === "TokenCreated") token = p.args.token; } catch {} }
+    $("createMsg").innerHTML = "";
+    showResult(token, f, tx.hash);
+    await refreshBalance(); await loadMyTokens(); await loadRecent();
+  } catch (e) { msg("createMsg", esc(errMsg(e)), "err"); }
   S.busy = false; updateButtons();
 }
 
-/* ---------- sending ---------- */
-async function doSend() {
-  if (!S.account) { await connect(); return; }
-  const p = S.plan; if (!p) return;
-  S.busy = true; updateButtons();
+function showResult(token, f, hash) {
   $("resultCard").classList.remove("hidden");
-  renderBatches();
-  try {
-    await ensureChain();
-    const ms = new ethers.Contract(CONFIG.CONTRACT, MS_ABI, S.signer);
-    for (let i = 0; i < p.batches.length; i++) {
-      const b = p.batches[i]; if (b.done) continue;
-      const to = b.rows.map((r) => r.addr);
-      const fee = await msRead.feeFor(to.length);
-      let fn, args, value;
-      if (p.asset === "bnb") {
-        if (p.equal) { fn = "sendBNBEqual"; args = [to, p.amountEach]; value = p.amountEach * BigInt(to.length) + fee; }
-        else { const am = b.rows.map((r) => r.amount); fn = "sendBNB"; args = [to, am]; value = am.reduce((a, x) => a + x, 0n) + fee; }
-      } else {
-        value = fee;
-        if (p.equal) { fn = "sendTokenEqual"; args = [p.token.address, to, p.amountEach]; }
-        else { fn = "sendToken"; args = [p.token.address, to, b.rows.map((r) => r.amount)]; }
-      }
-      // Pre-check: if the transaction would fail, show why before opening the wallet
-      b.status = "Checking…"; b.cls = "muted"; renderBatches();
-      await msRead[fn].staticCall(...args, { value, from: S.account });
-      // Gas check: split the batch in two if it would exceed BSC's per-transaction gas limit
-      let gasEst = null;
-      try { gasEst = await msRead[fn].estimateGas(...args, { value, from: S.account }); } catch {}
-      if (b.rows.length > 1 && (gasEst === null || gasEst > BigInt(CONFIG.TX_GAS_SAFE))) {
-        const half = Math.ceil(b.rows.length / 2);
-        p.batches.splice(i, 1,
-          { rows: b.rows.slice(0, half), done: false, hash: null, status: "" },
-          { rows: b.rows.slice(half), done: false, hash: null, status: "" });
-        // Recalculate the service fee after splitting and refresh the summary so the user sees what they will pay
-        p.fees = 0n;
-        for (const x of p.batches) { x.fee = await msRead.feeFor(x.rows.length); p.fees += x.fee; }
-        renderSummary();
-        renderBatches(); i--; continue;
-      }
-      b.status = "Waiting for wallet confirmation…"; b.cls = "warn"; renderBatches();
-      const tx = await ms[fn](...args, { value });
-      b.hash = tx.hash; b.status = "Submitted, waiting for confirmation…"; renderBatches();
-      const rc = await tx.wait();
-      if (rc.status !== 1) throw new Error("Transaction failed.");
-      b.done = true; b.status = "✓ Completed"; b.cls = "ok"; renderBatches();
-    }
-    showMsg(`🎉 Send complete: ${p.rows.length} recipient${p.rows.length === 1 ? "" : "s"}.`, "ok");
-  } catch (e) {
-    const b = p.batches.find((x) => !x.done);
-    if (b) { b.status = "✗ " + errMsg(e); b.cls = "err"; }
-    renderBatches();
-    showMsg(errMsg(e), "err");
-  }
-  S.busy = false;
-  await refreshBalances();
-  renderSummary();
-  if (p.asset === "token") { p.allowanceOk = undefined; }
-  updateButtons();
-}
-
-function renderBatches() {
-  const p = S.plan; if (!p) return;
-  $("batches").innerHTML = p.batches.map((b, i) => `
-    <div class="batch">
-      <div><b>Batch ${i + 1}/${p.batches.length}</b> <span class="muted">· ${b.rows.length} recipients</span></div>
-      <div><span class="${b.cls || "muted"}">${esc(b.status || "Queued")}</span>
-      ${b.hash ? ` · <a href="${CONFIG.EXPLORER}/tx/${b.hash}" target="_blank" rel="noopener">View on BscScan</a>` : ""}</div>
-    </div>`).join("");
-}
-
-function showMsg(html, cls) { $("sendMsg").innerHTML = `<div class="box ${cls}">${html}</div>`; }
-
-function errMsg(e) {
-  const code = e?.code ?? e?.info?.error?.code;
-  if (code === "ACTION_REJECTED" || code === 4001) return "You rejected the transaction in your wallet.";
-  const map = {
-    NotEnoughBNB: "Not enough BNB sent (amount + service fee).",
-    TokenTransferFailed: "Token transfer failed. The approval or your token balance may be insufficient.",
-    BNBTransferFailed: "One of the recipients does not accept BNB (it may be a contract that cannot receive BNB). Remove this address from the list.",
-    ZeroAddress: "The list contains the zero address or the MultiSender contract's own address.",
-    TooManyRecipients: `A transaction can have at most ${CONFIG.BATCH} recipients.`,
-    LengthMismatch: "The number of addresses and amounts do not match.",
-    NotOwner: "Only the contract owner can do this.",
-    AboveCeiling: "The fee cannot exceed the hard-coded ceiling in the contract."
+  const ms = CONFIG.MULTISENDER_URL;
+  $("result").innerHTML = `
+    <div class="grid">
+      <div>Token</div><div>${esc(f.name)} (${esc(f.symbol)})</div>
+      <div>Contract address</div><div class="mono">${token}</div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="btnWatch">Add to wallet</button>
+      <button id="btnCopy">Copy address</button>
+      <a href="${CONFIG.EXPLORER}/token/${token}" target="_blank" rel="noopener"><button>View on BscScan</button></a>
+      <a href="${CONFIG.EXPLORER}/tx/${hash}" target="_blank" rel="noopener"><button>Transaction</button></a>
+    </div>
+    <div class="help"><b>Next steps</b><br>
+      1. <a href="${CONFIG.PANCAKE_ADD_LP}${token}" target="_blank" rel="noopener">Add liquidity on PancakeSwap V2</a> so people can buy and sell.${f.taxed ? " Use <b>V2</b>: the tax only works on the V2 BNB pair." : ""}<br>
+      ${ms ? `2. <a href="${esc(ms)}" target="_blank" rel="noopener">Airdrop it with MultiSender</a> to your community.<br>3.` : "2."} <a href="${esc(CONFIG.CD1_EXCHANGE_URL)}" target="_blank" rel="noopener">List it on CD1 Exchange</a> for peer-to-peer trading.
+    </div>`;
+  $("btnCopy").onclick = async () => { try { await navigator.clipboard.writeText(token); $("btnCopy").textContent = "Copied ✓"; } catch {} };
+  $("btnWatch").onclick = async () => {
+    try { await window.ethereum.request({ method: "wallet_watchAsset", params: { type: "ERC20", options: { address: token, symbol: f.symbol.slice(0, 11), decimals: 18 } } }); } catch {}
   };
-  let name = e?.revert?.name, args = e?.revert?.args;
-  if (!name) { // some wallets return the error data in a different place
-    const cands = [e?.data, e?.info?.error?.data, e?.error?.data, e?.data?.data, e?.info?.error?.data?.data];
-    const m = String(e?.message || "").match(/0x[0-9a-fA-F]{8,}/); if (m) cands.push(m[0]);
-    for (const d of cands) {
-      if (typeof d !== "string" || !d.startsWith("0x")) continue;
-      try { const pe = MS_IFACE.parseError(d); if (pe) { name = pe.name; args = pe.args; break; } } catch {}
-    }
-  }
-  if (name && map[name]) return map[name] + (args?.[0] ? ` Address: ${args[0]}` : "");
-  if (code === "INSUFFICIENT_FUNDS" || /insufficient funds/i.test(e?.message || "")) return "Not enough BNB in your wallet (amount + fee + gas).";
-  return e?.shortMessage || e?.reason || e?.message || String(e);
+  $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-/* ---------- confirmation dialog ("Are you sure?") ---------- */
+/* ---------- my tokens ---------- */
+async function loadMyTokens() {
+  if (!configured || !S.account) return;
+  $("myCard").classList.remove("hidden");
+  let list;
+  try { list = await fRead.tokensByCreator(S.account); } catch { $("myTokens").textContent = "Could not load your tokens."; return; }
+  if (!list.length) { $("myTokens").textContent = "You have not created any tokens with this wallet yet."; return; }
+  const items = await Promise.all([...list].reverse().map((a) => tokenInfo(a)));
+  $("myTokens").className = "";
+  $("myTokens").innerHTML = items.map(renderMyToken).join("");
+  for (const t of items) if (t.taxed && t.isOwner) bindManage(t);
+}
+
+async function tokenInfo(addr) {
+  const taxed = await fRead.isTaxToken(addr);
+  const c = new ethers.Contract(addr, taxed ? TAX_ABI : ERC20_ABI, read);
+  const [name, symbol, supply] = await Promise.all([c.name(), c.symbol(), c.totalSupply()]);
+  const t = { addr, taxed, name, symbol, supply };
+  if (taxed) {
+    [t.owner, t.buy, t.sell, t.wallet, t.pair] = await Promise.all([c.owner(), c.buyTaxBps(), c.sellTaxBps(), c.taxWallet(), c.pair()]);
+    t.isOwner = S.account && t.owner.toLowerCase() === S.account.toLowerCase();
+  }
+  return t;
+}
+
+function renderMyToken(t) {
+  const id = t.addr.slice(2, 10);
+  let h = `<div class="tok">
+    <div class="tok-head">
+      <div><b>${esc(t.name)}</b> <span class="muted">${esc(t.symbol)}</span> <span class="tag ${t.taxed ? "tax" : ""}">${t.taxed ? "TAX" : "STANDARD"}</span></div>
+      <a class="muted" href="${CONFIG.EXPLORER}/token/${t.addr}" target="_blank" rel="noopener">${short(t.addr)} ↗</a>
+    </div>
+    <div class="muted">Supply ${fmt(t.supply, 18, 2)}${t.taxed ? ` · Buy tax ${pct(t.buy)} · Sell tax ${pct(t.sell)} · Tax wallet ${short(t.wallet)} · Owner ${t.owner === ZERO ? "renounced" : short(t.owner)}` : ""}</div>`;
+  if (t.taxed && t.isOwner) {
+    h += `<div class="manage" id="m-${id}">
+      <h4>Lower tax (can never be raised)</h4>
+      <div class="row">
+        <input id="mb-${id}" placeholder="Buy % (now ${pct(t.buy)})" inputmode="decimal">
+        <input id="ms-${id}" placeholder="Sell % (now ${pct(t.sell)})" inputmode="decimal">
+        <button class="small" id="mlt-${id}">Lower</button>
+      </div>
+      <h4>Change tax wallet</h4>
+      <div class="row"><input id="mw-${id}" placeholder="0x…" spellcheck="false"><button class="small" id="mtw-${id}">Change</button></div>
+      <h4>Ownership</h4>
+      <div class="row"><input id="mo-${id}" placeholder="New owner 0x…" spellcheck="false"><button class="small" id="mto-${id}">Transfer</button>
+      <button class="small danger" id="mro-${id}">Renounce</button></div>
+      <div class="muted" style="margin-top:6px">Renouncing locks the tax and tax wallet forever. Many buyers see this as a trust signal.</div>
+      <div id="mm-${id}"></div>
+    </div>`;
+  }
+  return h + `</div>`;
+}
+
+function bindManage(t) {
+  const id = t.addr.slice(2, 10);
+  const out = (h, c) => msg(`mm-${id}`, h, c);
+  const tokenTx = async (fn, args, label) => {
+    try {
+      await ensureChain();
+      const c = new ethers.Contract(t.addr, TAX_ABI, S.signer);
+      await new ethers.Contract(t.addr, TAX_ABI, read)[fn].staticCall(...args, { from: S.account });
+      out("Confirm the transaction in your wallet…", "warn");
+      const tx = await c[fn](...args);
+      out(`Submitted, waiting… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
+      await tx.wait();
+      await loadMyTokens();
+      // The manage box disappears after renouncing, so fall back to a message above the list
+      if ($(`mm-${id}`)) msg(`mm-${id}`, `✓ ${esc(label)}`, "ok");
+      else $("myTokens").insertAdjacentHTML("afterbegin", `<div class="box ok" style="margin:0 0 10px">✓ ${esc(t.symbol)}: ${esc(label)}</div>`);
+    } catch (e) { out(esc(errMsg(e)), "err"); }
+  };
+  $(`mlt-${id}`).onclick = async () => {
+    const bIn = $(`mb-${id}`).value, sIn = $(`ms-${id}`).value;
+    const b = bIn.trim() === "" ? { v: Number(t.buy) } : parsePct(bIn), s = sIn.trim() === "" ? { v: Number(t.sell) } : parsePct(sIn);
+    if (b.err || s.err) { out(esc(b.err || s.err), "err"); return; }
+    if (b.v > Number(t.buy) || s.v > Number(t.sell)) { out("Tax can only be lowered, never raised.", "err"); return; }
+    if (b.v === Number(t.buy) && s.v === Number(t.sell)) { out("Enter a lower value for buy and/or sell tax.", "err"); return; }
+    const ok = await confirmBox({ title: `Lower the tax of ${t.symbol}?`,
+      rows: [["Buy tax", `${pct(t.buy)} → ${pct(b.v)}`], ["Sell tax", `${pct(t.sell)} → ${pct(s.v)}`]],
+      warning: "<b>This is permanent.</b> Once lowered, the tax can never be raised back." });
+    if (ok) await tokenTx("lowerTaxes", [b.v, s.v], "Tax lowered.");
+  };
+  $(`mtw-${id}`).onclick = async () => {
+    let a; try { a = ethers.getAddress($(`mw-${id}`).value.trim()); } catch { out("Invalid address.", "err"); return; }
+    if (a === ZERO) { out("The zero address cannot be used.", "err"); return; }
+    const ok = await confirmBox({ title: `Change the tax wallet of ${t.symbol}?`, rows: [["Current", t.wallet], ["New", a]],
+      warning: "All future tax will go to the new address. Check it character by character.",
+      checkbox: "I have checked the new address." });
+    if (ok) await tokenTx("setTaxWallet", [a], "Tax wallet changed.");
+  };
+  $(`mto-${id}`).onclick = async () => {
+    let a; try { a = ethers.getAddress($(`mo-${id}`).value.trim()); } catch { out("Invalid address.", "err"); return; }
+    if (a === ZERO) { out("To give up ownership use “Renounce”.", "err"); return; }
+    if (!(await confirmBox({ title: `Transfer ownership of ${t.symbol}?`, rows: [["Current owner", t.owner], ["New owner", a]],
+      warning: "<b>This cannot be undone.</b> The new owner will control the tax settings of this token.",
+      checkbox: "I have checked the address and I trust this owner.", okText: "Continue", danger: true }))) return;
+    if (await confirmBox({ title: "Final confirmation", rows: [["New owner", a]], warning: "Are you really sure?", okText: "Yes, transfer", danger: true }))
+      await tokenTx("transferOwnership", [a], "Ownership transferred.");
+  };
+  $(`mro-${id}`).onclick = async () => {
+    if (!(await confirmBox({ title: `Renounce ownership of ${t.symbol}?`,
+      rows: [["Buy / Sell tax (locked)", `${pct(t.buy)} / ${pct(t.sell)}`], ["Tax wallet (locked)", t.wallet]],
+      warning: "<b>This cannot be undone.</b> Nobody will ever be able to lower the tax or change the tax wallet again.",
+      checkbox: "I understand the tax and tax wallet will be locked forever.", okText: "Continue", danger: true }))) return;
+    if (await confirmBox({ title: "Final confirmation", rows: [["Token", `${t.name} (${t.symbol})`]], warning: "Are you really sure?", okText: "Yes, renounce", danger: true }))
+      await tokenTx("renounceOwnership", [], "Ownership renounced.");
+  };
+}
+
+/* ---------- recent ---------- */
+async function loadRecent() {
+  if (!configured) { $("recent").textContent = "Available once the factory is deployed."; return; }
+  try {
+    const n = Number(await fRead.totalTokens());
+    if (!n) { $("recent").textContent = "No tokens created yet. Be the first!"; return; }
+    const idx = []; for (let i = n - 1; i >= Math.max(0, n - CONFIG.RECENT_COUNT); i--) idx.push(i);
+    const addrs = await Promise.all(idx.map((i) => fRead.allTokens(i)));
+    const items = await Promise.all(addrs.map(async (a) => {
+      const taxed = await fRead.isTaxToken(a);
+      const c = new ethers.Contract(a, ERC20_ABI, read);
+      const [name, symbol] = await Promise.all([c.name(), c.symbol()]);
+      return { a, taxed, name, symbol };
+    }));
+    $("recent").className = "";
+    $("recent").innerHTML = `<div class="muted" style="margin-bottom:8px">${n.toLocaleString("en-US")} token${n === 1 ? "" : "s"} created so far.</div>` +
+      items.map((t) => `<div class="tok"><div class="tok-head">
+        <div><b>${esc(t.name)}</b> <span class="muted">${esc(t.symbol)}</span> <span class="tag ${t.taxed ? "tax" : ""}">${t.taxed ? "TAX" : "STANDARD"}</span></div>
+        <a class="muted" href="${CONFIG.EXPLORER}/token/${t.a}" target="_blank" rel="noopener">${short(t.a)} ↗</a></div></div>`).join("");
+  } catch { $("recent").textContent = "Could not load recent tokens."; }
+}
+
+/* ---------- confirmation dialog ---------- */
 function confirmBox({ title, rows, warning, checkbox, okText = "Yes, I'm sure", danger = false }) {
   return new Promise((resolve) => {
     const bg = document.createElement("div");
@@ -685,163 +698,137 @@ function confirmBox({ title, rows, warning, checkbox, okText = "Yes, I'm sure", 
 }
 
 /* ---------- admin panel ---------- */
-const A_ = { owner: null, receiver: null, per: null, cap: null, maxPer: null, maxCap: null };
-
+let OWNER = null;
 async function refreshAdmin() {
   if (!configured || !S.account) return;
-  try {
-    [A_.owner, A_.receiver, A_.per, A_.cap, A_.maxPer, A_.maxCap] = await Promise.all([
-      msRead.owner(), msRead.feeReceiver(), msRead.feePerRecipient(), msRead.feeCap(),
-      msRead.MAX_FEE_PER_RECIPIENT(), msRead.MAX_FEE_CAP()]);
-  } catch { return; }
-  const isOwner = A_.owner.toLowerCase() === S.account.toLowerCase();
+  try { OWNER = await fRead.owner(); S.fee = await fRead.creationFee(); } catch { return; }
+  $("feeInfo").textContent = `${fmt(S.fee, 18, 8)} BNB per token.`;
+  const isOwner = OWNER.toLowerCase() === S.account.toLowerCase();
   $("adminCard").classList.toggle("hidden", !isOwner);
   if (!isOwner) return;
+  const total = await fRead.totalTokens().catch(() => null);
   $("adminInfo").innerHTML = `
-    <div>Owner</div><div class="mono">${A_.owner}</div>
-    <div>Fee receiver</div><div class="mono">${A_.receiver}</div>
-    <div>Fee per recipient</div><div>${fmt(A_.per, 18, 8)} BNB</div>
-    <div>Cap per transaction</div><div>${fmt(A_.cap, 18, 8)} BNB</div>`;
-  $("maxPer").textContent = fmt(A_.maxPer, 18, 8);
-  $("maxCap").textContent = fmt(A_.maxCap, 18, 8);
-  $("feeInfo").textContent = `${fmt(A_.per, 18, 8)} BNB per recipient, at most ${fmt(A_.cap, 18, 8)} BNB per transaction.`;
+    <div>Owner (receives fees)</div><div class="mono">${OWNER}</div>
+    <div>Creation fee</div><div>${fmt(S.fee, 18, 8)} BNB</div>
+    <div>Tokens created</div><div>${total != null ? total.toString() : "—"}</div>`;
+  $("feeInfo").textContent = `${fmt(S.fee, 18, 8)} BNB per token.`;
 }
 
-function adminMsg(html, cls) { $("adminMsg").innerHTML = `<div class="box ${cls}">${html}</div>`; }
-
-async function adminTx(fnName, args, label) {
+async function adminTx(fn, args, label) {
   try {
     await ensureChain();
-    const ms = new ethers.Contract(CONFIG.CONTRACT, MS_ABI, S.signer);
-    await msRead[fnName].staticCall(...args, { from: S.account }); // dry run first: show any error before opening the wallet
-    adminMsg("Confirm the transaction in your wallet…", "warn");
-    const tx = await ms[fnName](...args);
-    adminMsg(`Transaction submitted, waiting… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
+    const fac = new ethers.Contract(CONFIG.CONTRACT, FACTORY_ABI, S.signer);
+    await fRead[fn].staticCall(...args, { from: S.account });
+    msg("adminMsg", "Confirm the transaction in your wallet…", "warn");
+    const tx = await fac[fn](...args);
+    msg("adminMsg", `Transaction submitted, waiting… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
     await tx.wait();
-    adminMsg(`✓ ${esc(label)}`, "ok");
-    await refreshAdmin();
-  } catch (e) { adminMsg(esc(errMsg(e)), "err"); }
+    await refreshAdmin(); await updateSummary();
+    msg("adminMsg", `✓ ${esc(label)}`, "ok");
+  } catch (e) { msg("adminMsg", esc(errMsg(e)), "err"); }
 }
 
-async function onSetFees() {
-  const parseFee = (s) => { s = s.trim(); if (/^0+([.,]0*)?$/.test(s)) return 0n; return s ? parseAmount(s, 18).v : undefined; };
-  const per = parseFee($("inPer").value), cap = parseFee($("inCap").value);
-  if (per === undefined || cap === undefined) { adminMsg("Enter a valid BNB amount (0 = free).", "err"); return; }
-  if (per > A_.maxPer || cap > A_.maxCap) { adminMsg("The fee cannot exceed the hard-coded ceiling in the contract.", "err"); return; }
-  const ok = await confirmBox({
-    title: "Are you sure you want to change the fees?",
-    rows: [["Per recipient: current", fmt(A_.per, 18, 8) + " BNB"], ["Per recipient: new", fmt(per, 18, 8) + " BNB"],
-           ["Cap: current", fmt(A_.cap, 18, 8) + " BNB"], ["Cap: new", fmt(cap, 18, 8) + " BNB"]],
-    warning: "The new fees apply to all users as soon as this transaction is confirmed."
-  });
-  if (ok) await adminTx("setFees", [per, cap], "Fees updated.");
+async function onLowerFee() {
+  const s = $("inFee").value.trim();
+  let v;
+  if (/^0+(\.0*)?$/.test(s)) v = 0n;
+  else if (!/^(\d+\.?\d*|\.\d+)$/.test(s)) { msg("adminMsg", "Enter a valid BNB amount with a dot for decimals (0 = free).", "err"); return; }
+  else { try { v = ethers.parseEther(s); } catch { msg("adminMsg", "Too many decimal places.", "err"); return; } }
+  if (v >= S.fee) { msg("adminMsg", "The fee can only be lowered. Enter a value below the current fee.", "err"); return; }
+  const ok = await confirmBox({ title: "Lower the creation fee?",
+    rows: [["Current fee", fmt(S.fee, 18, 8) + " BNB"], ["New fee", fmt(v, 18, 8) + " BNB"]],
+    warning: "<b>This is permanent.</b> The fee can never be raised back. It applies to all users immediately." });
+  if (ok) await adminTx("lowerFee", [v], "Fee lowered.");
 }
 
-async function onSetReceiver() {
-  let addr; try { addr = ethers.getAddress($("inReceiver").value.trim()); } catch { adminMsg("Invalid address.", "err"); return; }
-  if (addr === ZERO) { adminMsg("The zero address cannot be used.", "err"); return; }
-  const ok = await confirmBox({
-    title: "Are you sure you want to change the fee receiver?",
-    rows: [["Current", A_.receiver], ["New", addr]],
-    warning: "All future fees will go to the new address. Check the address character by character.",
-    checkbox: "I have checked the new address and I control this wallet."
-  });
-  if (ok) await adminTx("setFeeReceiver", [addr], "Fee receiver changed.");
+async function onRescue() {
+  let a; try { a = ethers.getAddress($("inRescue").value.trim()); } catch { msg("adminMsg", "Invalid token address.", "err"); return; }
+  let bal, sym;
+  try { const c = new ethers.Contract(a, ERC20_ABI, read); [bal, sym] = await Promise.all([c.balanceOf(CONFIG.CONTRACT), c.symbol()]); }
+  catch { msg("adminMsg", "Could not read this token.", "err"); return; }
+  if (bal === 0n) { msg("adminMsg", `The factory holds no ${esc(sym)}. Nothing to rescue.`, "ok"); return; }
+  const ok = await confirmBox({ title: `Rescue ${sym}?`, rows: [["Amount", fmt(bal) + " " + sym], ["Sent to", OWNER]],
+    warning: "These tokens were sent to the factory by mistake. Remember to return them to their original sender." });
+  if (ok) await adminTx("rescueToken", [a, bal], `${sym} rescued to the owner wallet.`);
 }
 
 async function onTransfer() {
-  const raw = $("inOwner").value.trim();
-  let addr; try { addr = ethers.getAddress(raw); } catch { adminMsg("Invalid address.", "err"); return; }
-  const renounce = addr === ZERO;
-  if (addr.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { adminMsg("Ownership cannot be transferred to the contract itself.", "err"); return; }
-  const ok1 = await confirmBox({
-    title: renounce ? "Are you sure you want to renounce ownership completely?" : "Are you sure you want to transfer ownership?",
-    rows: [["Current owner", A_.owner], ["New owner", renounce ? "NONE (ownership renounced)" : addr]],
-    warning: renounce
-      ? "<b>This cannot be undone.</b> The fees stay as they are now forever; nobody can change them."
-      : "<b>This cannot be undone.</b> It is a single step: if you enter a wrong address you permanently lose control of the contract.",
-    checkbox: renounce ? "I understand that after renouncing I can never change the fees again." : "I have checked the address character by character and I control this wallet.",
-    okText: "Continue", danger: true
-  });
-  if (!ok1) return;
-  const ok2 = await confirmBox({
-    title: "Final confirmation",
-    rows: [["New owner", renounce ? "NONE" : addr]],
-    warning: "Are you really sure? After this step your wallet will ask you to sign the transaction.",
-    okText: "Yes, transfer", danger: true
-  });
-  if (ok2) await adminTx("transferOwnership", [addr], renounce ? "Ownership renounced." : "Ownership transferred.");
+  let a; try { a = ethers.getAddress($("inOwner").value.trim()); } catch { msg("adminMsg", "Invalid address.", "err"); return; }
+  if (a === ZERO) { msg("adminMsg", "The zero address cannot be used.", "err"); return; }
+  if (a.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { msg("adminMsg", "Ownership cannot be transferred to the contract itself.", "err"); return; }
+  if (!(await confirmBox({ title: "Are you sure you want to transfer ownership?", rows: [["Current owner", OWNER], ["New owner", a]],
+    warning: "<b>This cannot be undone.</b> It is a single step: if you enter a wrong address you permanently lose control of the factory, and all future fees go to the new owner.",
+    checkbox: "I have checked the address character by character and I control this wallet.", okText: "Continue", danger: true }))) return;
+  if (await confirmBox({ title: "Final confirmation", rows: [["New owner", a]],
+    warning: "Are you really sure? After this step your wallet will ask you to sign the transaction.", okText: "Yes, transfer", danger: true }))
+    await adminTx("transferOwnership", [a], "Ownership transferred.");
 }
+
+/* ---------- errors ---------- */
+function errMsg(e) {
+  const code = e?.code ?? e?.info?.error?.code;
+  if (code === "ACTION_REJECTED" || code === 4001) return "You rejected the transaction in your wallet.";
+  const map = {
+    WrongFee: "Not enough BNB sent for the creation fee.",
+    FeeCanOnlyDecrease: "The fee can only be lowered.",
+    BadSupply: "Invalid total supply.",
+    EmptyNameOrSymbol: "Name and symbol are required.",
+    TaxTooHigh: "Tax cannot exceed 5%.",
+    TaxCanOnlyDecrease: "Tax can only be lowered, never raised.",
+    ZeroAddress: "The zero address cannot be used.",
+    OwnableUnauthorizedAccount: "Only the owner can do this.",
+    OwnableInvalidOwner: "Invalid new owner address.",
+    TransferFailed: "A transfer failed."
+  };
+  let name = e?.revert?.name;
+  if (!name) {
+    const cands = [e?.data, e?.info?.error?.data, e?.error?.data, e?.data?.data, e?.info?.error?.data?.data];
+    const m = String(e?.message || "").match(/0x[0-9a-fA-F]{8,}/); if (m) cands.push(m[0]);
+    outer: for (const d of cands) {
+      if (typeof d !== "string" || !d.startsWith("0x")) continue;
+      for (const I of IFACES) { try { const pe = I.parseError(d); if (pe) { name = pe.name; break outer; } } catch {} }
+    }
+  }
+  if (name && map[name]) return map[name];
+  if (code === "INSUFFICIENT_FUNDS" || /insufficient funds/i.test(e?.message || "")) return "Not enough BNB in your wallet (fee + gas).";
+  return e?.shortMessage || e?.reason || e?.message || String(e);
+}
+function msg(id, html, cls) { const el = $(id); if (el) el.innerHTML = `<div class="box ${cls}">${html}</div>`; }
 
 /* ---------- UI events ---------- */
-function seg(id, key, after) {
-  $(id).querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
-    if (S.busy) return;
-    $(id).querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
-    S[key] = b.dataset.v; after();
-  }));
-}
-seg("segAsset", "asset", () => {
-  $("tokenArea").classList.toggle("hidden", S.asset !== "token");
-  if (S.asset === "token" && $("tokenAddr").value.trim() && !S.token) loadToken(); else analyze();
-});
-seg("segAmount", "amountMode", () => {
-  const eq = S.amountMode === "equal";
-  $("equalArea").classList.toggle("hidden", !eq);
-  $("helpEqual").classList.toggle("hidden", !eq);
-  $("helpDiff").classList.toggle("hidden", eq);
-  $("listLabel").textContent = eq ? "One address per line" : "One recipient per line: address, amount";
-  $("list").placeholder = eq
-    ? "0x1111111111111111111111111111111111111111\n0x2222222222222222222222222222222222222222\n0x3333333333333333333333333333333333333333"
-    : "0x1111111111111111111111111111111111111111, 1.5\n0x2222222222222222222222222222222222222222, 20\n0x3333333333333333333333333333333333333333; 0.25";
-  analyze();
-});
-
+$("segType").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+  if (S.busy) return;
+  $("segType").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  S.type = b.dataset.v;
+  $("taxArea").classList.toggle("hidden", S.type !== "tax");
+  $("stdHelp").classList.toggle("hidden", S.type === "tax");
+  updateSummary();
+}));
+for (const id of ["inName", "inSymbol", "inSupply", "inBuy", "inSell", "inTaxWallet"]) $(id).addEventListener("input", scheduleUpdate);
+$("inSymbol").addEventListener("blur", () => { $("inSymbol").value = $("inSymbol").value.trim().toUpperCase(); scheduleUpdate(); });
 $("btnConnect").addEventListener("click", connect);
-$("btnSetFees").addEventListener("click", onSetFees);
-$("btnSetReceiver").addEventListener("click", onSetReceiver);
+$("btnCreate").addEventListener("click", doCreate);
+$("btnLowerFee").addEventListener("click", onLowerFee);
+$("btnRescue").addEventListener("click", onRescue);
 $("btnTransfer").addEventListener("click", onTransfer);
-$("list").addEventListener("input", scheduleAnalyze);
-$("equalAmount").addEventListener("input", scheduleAnalyze);
-let tokenTimer = null;
-$("tokenAddr").addEventListener("input", () => { clearTimeout(tokenTimer); tokenTimer = setTimeout(loadToken, 400); });
-$("btnApprove").addEventListener("click", doApprove);
-$("btnSend").addEventListener("click", doSend);
-$("btnFile").addEventListener("click", () => $("file").click());
-$("file").addEventListener("change", async (ev) => {
-  const f = ev.target.files[0]; if (!f) return;
-  $("list").value = await f.text(); ev.target.value = ""; analyze();
-});
-$("btnTemplate").addEventListener("click", () => {
-  const eq = S.amountMode === "equal";
-  const csv = eq
-    ? "address\n0x1111111111111111111111111111111111111111\n0x2222222222222222222222222222222222222222\n"
-    : "address,amount\n0x1111111111111111111111111111111111111111,1.5\n0x2222222222222222222222222222222222222222,20\n";
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  a.download = eq ? "multisender-addresses.csv" : "multisender-sample.csv"; a.click();
-});
-$("btnClean").addEventListener("click", () => {
-  const { rows } = parseList($("list").value, S.amountMode === "equal", decs());
-  $("list").value = rows.map((r) => r.raw.trim()).join("\n"); analyze();
-});
 
 /* ---------- init ---------- */
 (async function init() {
   $("contractLink").textContent = configured ? CONFIG.CONTRACT : "not set yet";
   if (configured) $("contractLink").href = `${CONFIG.EXPLORER}/address/${CONFIG.CONTRACT}#code`;
   else $("cfgWarn").classList.remove("hidden");
+  if (CONFIG.MULTISENDER_URL) { $("ecoMs").href = CONFIG.MULTISENDER_URL; $("ecoMs").classList.remove("hidden"); }
   const here = location.host + location.pathname;
   $("mmLink").href = "https://metamask.app.link/dapp/" + here;
   $("twLink").href = "https://link.trustwallet.com/open_url?coin_id=20000714&url=" + encodeURIComponent(location.href);
   try {
     if (!configured) throw 0;
-    const [per, cap] = await Promise.all([msRead.feePerRecipient(), msRead.feeCap()]);
-    $("feeInfo").textContent = `${fmt(per, 18, 8)} BNB per recipient, at most ${fmt(cap, 18, 8)} BNB per transaction.`;
+    [S.fee, S.maxSupply] = await Promise.all([fRead.creationFee(), fRead.MAX_SUPPLY()]);
+    $("feeInfo").textContent = `${fmt(S.fee, 18, 8)} BNB per token.`;
   } catch { $("feeInfo").textContent = "shown once the contract is reachable."; }
   updateButtons();
+  loadRecent();
 })();
 </script>
 </body>
 </html>
-

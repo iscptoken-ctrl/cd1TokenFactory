@@ -222,6 +222,9 @@
       <a id="ecoMs" href="#" target="_blank" rel="noopener" class="hidden">
         <b>MultiSender</b><br><span class="muted">Airdrop your token to hundreds of wallets at once.</span>
       </a>
+      <a href="/staking/" target="_blank" rel="noopener">
+        <b>Staking Pools</b><br><span class="muted">Launch a staking pool to reward your holders.</span>
+      </a>
       <a href="https://bnbp2p.vercel.app" target="_blank" rel="noopener">
         <b>CD1 Exchange</b><br><span class="muted">Trade your new token peer-to-peer.</span>
       </a>
@@ -276,6 +279,7 @@ const CONFIG = {
   PANCAKE_ADD_LP: "https://pancakeswap.finance/v2/add/BNB/",   // + token address
   MULTISENDER_URL: "https://cd1tokenfactory.vercel.app/", // MultiSender site link (leave empty to hide)
   CD1_EXCHANGE_URL: "https://bnbp2p.vercel.app",
+  STAKING_URL: "/staking/",
   RECENT_COUNT: 8
 };
 /* ============================================= */
@@ -534,7 +538,9 @@ function showResult(token, f, hash) {
     </div>
     <div class="help"><b>Next steps</b><br>
       1. <a href="${CONFIG.PANCAKE_ADD_LP}${token}" target="_blank" rel="noopener">Add liquidity on PancakeSwap V2</a> so people can buy and sell.${f.taxed ? " Use <b>V2</b>: the tax only works on the V2 BNB pair." : ""}<br>
-      ${ms ? `2. <a href="${esc(ms)}" target="_blank" rel="noopener">Airdrop it with MultiSender</a> to your community.<br>3.` : "2."} <a href="${esc(CONFIG.CD1_EXCHANGE_URL)}" target="_blank" rel="noopener">List it on CD1 Exchange</a> for peer-to-peer trading.
+      ${ms ? `2. <a href="${esc(ms)}" target="_blank" rel="noopener">Airdrop it with MultiSender</a> to your community.<br>` : ""}
+      ${ms ? "3." : "2."} <a href="${esc(CONFIG.STAKING_URL)}?token=${token}" target="_blank" rel="noopener">Create a staking pool</a> to reward holders.<br>
+      ${ms ? "4." : "3."} <a href="${esc(CONFIG.CD1_EXCHANGE_URL)}" target="_blank" rel="noopener">List it on CD1 Exchange</a> for peer-to-peer trading.
     </div>`;
   $("btnCopy").onclick = async () => { try { await navigator.clipboard.writeText(token); $("btnCopy").textContent = "Copied ✓"; } catch {} };
   $("btnWatch").onclick = async () => {
@@ -832,4 +838,3 @@ $("btnTransfer").addEventListener("click", onTransfer);
 </script>
 </body>
 </html>
-

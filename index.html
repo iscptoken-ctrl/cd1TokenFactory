@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BNB MultiSender</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --text: #1d1d1b; --muted: #6b6a64; --line: #e3e1da;
+    --accent: #c99a06; --accent-ink: #1d1d1b; --ok: #1f8a4c; --err: #c0392b; --warn: #a86a00;
+    --soft: #faf8f2; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121210; --card: #1b1b18; --text: #eeede8; --muted: #9c9a92; --line: #2e2d29;
+      --accent: #f0b90b; --accent-ink: #121210; --ok: #4cc27f; --err: #ff6b5b; --warn: #f0b90b; --soft: #22221e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121210; --card: #1b1b18; --text: #eeede8; --muted: #9c9a92; --line: #2e2d29;
+    --accent: #f0b90b; --accent-ink: #121210; --ok: #4cc27f; --err: #ff6b5b; --warn: #f0b90b; --soft: #22221e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+  .step { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+  .num { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--soft); color: var(--text); padding: 9px 14px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex-wrap: wrap; }
+  .seg button { border: 0; border-radius: 0; background: transparent; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  input, textarea { width: 100%; font: inherit; color: var(--text); background: var(--soft);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  textarea { font-family: var(--mono); font-size: 13px; min-height: 180px; resize: vertical; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .mono { font-family: var(--mono); font-size: 13px; word-break: break-all; }
+  .ok { color: var(--ok); } .err { color: var(--err); } .warn { color: var(--warn); }
+  .box { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
+  .box.err { background: color-mix(in srgb, var(--err) 10%, transparent); }
+  .box.warn { background: color-mix(in srgb, var(--warn) 12%, transparent); }
+  .box.ok { background: color-mix(in srgb, var(--ok) 10%, transparent); }
+  .help { background: var(--soft); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .help code { font-family: var(--mono); color: var(--text); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 14px; }
+  .grid div:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .grid .total { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+  ul.errs { margin: 6px 0 0; padding-left: 18px; max-height: 160px; overflow: auto; }
+  .batch { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .batch:first-child { border-top: 0; }
+  a { color: var(--accent); }
+  .hidden { display: none !important; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 20px; }
+  .eco { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .eco a { display: block; text-decoration: none; color: var(--text); background: var(--soft);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .eco a:hover { border-color: var(--accent); }
+  .eco b { color: var(--accent); }
+  .admin { border-color: var(--warn); }
+  .admin h3 { margin: 16px 0 6px; font-size: 14px; }
+  .admin .row input { flex: 1; min-width: 160px; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; padding: 16px; z-index: 50; }
+  .modal { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; max-width: 460px; width: 100%; }
+  .modal h3 { margin: 0 0 10px; }
+  .modal .grid { margin: 10px 0; }
+  .modal label.chk { display: flex; gap: 8px; align-items: flex-start; color: var(--text); font-size: 14px; margin: 12px 0 0; }
+  .modal label.chk input { width: auto; margin-top: 3px; }
+  button.danger { background: var(--err); border-color: var(--err); color: #fff; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>BNB <span>MultiSender</span></h1>
+    <button id="btnConnect" class="primary">Cüzdanı Bağla</button>
+  </header>
+  <p class="sub">Tek işlemde yüzlerce adrese BNB veya token gönderin. Ücret düşük ve sınırlı: <span id="feeInfo">yükleniyor…</span></p>
+
+  <div id="cfgWarn" class="box err hidden">Kontrat adresi henüz girilmedi. Dosyanın içindeki <code>CONFIG.CONTRACT</code> satırını güncelleyin.</div>
+
+  <!-- Cüzdan durumu -->
+  <div id="walletBox" class="card hidden">
+    <div class="row" style="justify-content:space-between">
+      <div><div class="muted">Bağlı cüzdan</div><div id="acct" class="mono"></div></div>
+      <div style="text-align:right"><div class="muted">BNB bakiyesi</div><div id="bnbBal" style="font-weight:600"></div></div>
+    </div>
+  </div>
+
+  <div id="noWallet" class="card hidden">
+    <b>Cüzdan bulunamadı.</b>
+    <p class="muted">Bilgisayarda MetaMask eklentisini kurun. Telefondaysanız sayfayı cüzdan uygulamasının içinden açın:</p>
+    <div class="row">
+      <a id="mmLink"><button>MetaMask'ta aç</button></a>
+      <a id="twLink"><button>Trust Wallet'ta aç</button></a>
+    </div>
+  </div>
+
+  <!-- 1: Ne gönderilecek -->
+  <div class="card">
+    <div class="step"><span class="num">1</span>Ne göndereceksiniz?</div>
+    <div class="seg" id="segAsset">
+      <button data-v="bnb" class="on">BNB</button>
+      <button data-v="token">Token (BEP-20)</button>
+    </div>
+    <div id="tokenArea" class="hidden">
+      <label for="tokenAddr">Token kontrat adresi</label>
+      <input id="tokenAddr" placeholder="0x… (BscScan'de token sayfasındaki adres)" autocomplete="off" spellcheck="false">
+      <div id="tokenInfo" class="muted" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- 2: Alıcılar -->
+  <div class="card">
+    <div class="step"><span class="num">2</span>Alıcıları girin</div>
+    <div class="seg" id="segAmount">
+      <button data-v="diff" class="on">Her alıcıya farklı miktar</button>
+      <button data-v="equal">Herkese aynı miktar</button>
+    </div>
+
+    <div id="equalArea" class="hidden">
+      <label for="equalAmount">Her alıcıya gönderilecek miktar</label>
+      <input id="equalAmount" placeholder="ör. 10 veya 0.5" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <label for="list" id="listLabel">Her satıra bir alıcı: adres, miktar</label>
+    <textarea id="list" spellcheck="false" placeholder="0x1111111111111111111111111111111111111111, 1.5
+0x2222222222222222222222222222222222222222, 20
+0x3333333333333333333333333333333333333333; 0,25"></textarea>
+
+    <div class="row" style="margin-top:10px">
+      <button id="btnFile">CSV / TXT yükle</button>
+      <input type="file" id="file" accept=".csv,.txt,text/csv,text/plain" class="hidden">
+      <button id="btnTemplate">Örnek CSV indir</button>
+      <button id="btnClean" class="hidden">Hatalı satırları temizle</button>
+    </div>
+
+    <div class="help" id="helpDiff">
+      <b>Nasıl girilir?</b><br>
+      • Her satıra önce adres, sonra miktar yazın. Arasına virgül, noktalı virgül, boşluk veya tab koyabilirsiniz.<br>
+      • Ondalık için nokta ya da virgül kullanabilirsiniz: <code>0.5</code> veya <code>0,5</code>. Binlik ayırıcı kullanmayın: <code>1000</code> yazın, <code>1.000</code> değil.<br>
+      • Excel'de A sütununa adresleri, B sütununa miktarları yazıp <i>Farklı Kaydet → CSV</i> ile kaydedin, sonra “CSV / TXT yükle” ile seçin. Başlık satırı varsa otomatik atlanır.<br>
+      • Miktarlar token birimidir (ör. 10 USDT için <code>10</code> yazın).
+    </div>
+    <div class="help hidden" id="helpEqual">
+      <b>Nasıl girilir?</b><br>
+      • Yukarıya tek miktarı yazın, aşağıya her satıra bir adres yapıştırın.<br>
+      • Satırda adresten sonra bir şey varsa yok sayılır.<br>
+      • Excel'den bir sütunu kopyalayıp doğrudan buraya yapıştırabilirsiniz.
+    </div>
+
+    <div id="checkOut"></div>
+  </div>
+
+  <!-- 3: Özet ve gönderim -->
+  <div class="card">
+    <div class="step"><span class="num">3</span>Kontrol edin ve gönderin</div>
+    <div id="summary" class="muted">Alıcı listesi girildiğinde özet burada görünür.</div>
+    <div id="sendMsg"></div>
+    <div class="row" style="margin-top:14px">
+      <button id="btnApprove" class="primary hidden">1) Token harcama onayı ver</button>
+      <button id="btnSend" class="primary" disabled>Gönder</button>
+    </div>
+    <div id="approveNote" class="muted hidden" style="margin-top:8px">
+      Token gönderimi iki adımlıdır: önce kontratın tokenlarınızdan <b>sadece bu gönderim kadar</b> harcamasına izin verirsiniz, sonra gönderirsiniz. Sınırsız izin istenmez.
+    </div>
+  </div>
+
+  <!-- 4: Sonuç -->
+  <div class="card hidden" id="resultCard">
+    <div class="step"><span class="num">4</span>Gönderim durumu</div>
+    <div id="batches"></div>
+    <p class="muted" style="margin-bottom:0">Her parti ayrı bir işlemdir. Bir parti başarısız olursa o partideki hiçbir alıcıya gönderim yapılmaz. Kalan partiler için tekrar “Gönder”e basmanız yeterli, tamamlananlar tekrar gönderilmez.</p>
+  </div>
+
+  <!-- Ekosistem linkleri -->
+  <div class="card">
+    <div class="step">CD1 ekosistemi</div>
+    <div class="eco">
+      <a href="https://bnbp2p.vercel.app" target="_blank" rel="noopener">
+        <b>CD1 Exchange</b><br><span class="muted">Yeni tokenını P2P al-sat için kullan.</span>
+      </a>
+      <a href="https://cd1satominer.vercel.app/" target="_blank" rel="noopener">
+        <b>CD1 Sat Miner</b><br><span class="muted">Bitcoin madenciliği temalı staking oyunu.</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Yönetim paneli: sadece kontrat sahibinin cüzdanında görünür -->
+  <div class="card admin hidden" id="adminCard">
+    <div class="step">Yönetim paneli <span class="muted" style="font-weight:400">(sadece sahip görür)</span></div>
+    <div class="grid" id="adminInfo"></div>
+
+    <h3>Ücretler</h3>
+    <div class="muted">Tavanın üstüne çıkılamaz (alıcı başı en fazla <span id="maxPer"></span> BNB, işlem başı en fazla <span id="maxCap"></span> BNB).</div>
+    <div class="row" style="margin-top:8px">
+      <input id="inPer" placeholder="Alıcı başı (BNB)" inputmode="decimal">
+      <input id="inCap" placeholder="İşlem başı tavan (BNB)" inputmode="decimal">
+      <button id="btnSetFees">Ücreti güncelle</button>
+    </div>
+
+    <h3>Ücretin gittiği cüzdan</h3>
+    <div class="row">
+      <input id="inReceiver" placeholder="0x…" spellcheck="false">
+      <button id="btnSetReceiver">Değiştir</button>
+    </div>
+
+    <h3>Sahipliği devret</h3>
+    <div class="muted">Tek adımlıdır: yanlış adres yazılırsa kontrat kontrolü geri gelmez.</div>
+    <div class="row" style="margin-top:8px">
+      <input id="inOwner" placeholder="Yeni sahip 0x…" spellcheck="false">
+      <button id="btnTransfer" class="danger">Devret</button>
+    </div>
+    <div id="adminMsg"></div>
+  </div>
+
+  <footer>
+    Kontrat: <a id="contractLink" target="_blank" rel="noopener"></a><br>
+    Ücretin tavanı kontrata sabit yazılıdır, yükseltilemez. Kontrat para tutmaz; gönderilenden kesinti yapılmaz.
+  </footer>
+</div>
+
+<script>
+/* ================== AYARLAR ================== */
+const CONFIG = {
+  CONTRACT: "0x202c0103aBD508CAE1D945B6124e0631a5eDAB41", // BSC ana ağ, doğrulanmış
+  CHAIN_ID: 56,
+  CHAIN_HEX: "0x38",
+  RPC: "https://bsc-dataseed.bnbchain.org",
+  EXPLORER: "https://bscscan.com",
+  BATCH: 400,               // kontrattaki MAX_RECIPIENTS ile aynı
+  TX_GAS_SAFE: 15000000,    // BSC işlem başı gaz sınırı 16.777.216; güvenli pay bırakılır
+  GAS_PER_BNB: 37000,       // tahmini gaz (alıcı başına), sadece özet için
+  GAS_PER_TOKEN: 29000,
+  GAS_BASE: 60000
+};
+/* ============================================= */
+
+const MS_ABI = [
+  "function feeFor(uint256 recipientCount) view returns (uint256)",
+  "function feePerRecipient() view returns (uint256)",
+  "function feeCap() view returns (uint256)",
+  "function sendBNB(address[] to, uint256[] amounts) payable",
+  "function sendBNBEqual(address[] to, uint256 amountEach) payable",
+  "function sendToken(address token, address[] to, uint256[] amounts) payable",
+  "function sendTokenEqual(address token, address[] to, uint256 amountEach) payable",
+  "error LengthMismatch()", "error TooManyRecipients()", "error ZeroAddress()", "error NotEnoughBNB()",
+  "error BNBTransferFailed(address to)", "error TokenTransferFailed(address to)",
+  "function owner() view returns (address)", "function feeReceiver() view returns (address)",
+  "function MAX_FEE_PER_RECIPIENT() view returns (uint256)", "function MAX_FEE_CAP() view returns (uint256)",
+  "function setFees(uint256 newFeePerRecipient, uint256 newFeeCap)",
+  "function setFeeReceiver(address newReceiver)",
+  "function transferOwnership(address newOwner)",
+  "error NotOwner()", "error AboveCeiling()"
+];
+const ERC20_ABI = [
+  "function name() view returns (string)", "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)", "function balanceOf(address) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)"
+];
+
+const MS_IFACE = new ethers.Interface(MS_ABI);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ZERO = "0x0000000000000000000000000000000000000000";
+const configured = CONFIG.CONTRACT.toLowerCase() !== ZERO;
+
+const read = new ethers.JsonRpcProvider(CONFIG.RPC, CONFIG.CHAIN_ID, { staticNetwork: true });
+const msRead = new ethers.Contract(CONFIG.CONTRACT, MS_ABI, read);
+
+const S = {
+  provider: null, signer: null, account: null, bnbBalance: null,
+  asset: "bnb", amountMode: "diff",
+  token: null,          // {address, name, symbol, decimals, balance, contract}
+  plan: null,           // hesaplanan gönderim planı
+  busy: false
+};
+
+function fmt(v, dec = 18, max = 6) {
+  const s = ethers.formatUnits(v, dec);
+  const [i, f = ""] = s.split(".");
+  const ff = f.slice(0, max).replace(/0+$/, "");
+  return Number(i).toLocaleString("tr-TR") + (ff ? "," + ff : "");
+}
+const sym = () => (S.asset === "bnb" ? "BNB" : (S.token?.symbol || "token"));
+const decs = () => (S.asset === "bnb" ? 18 : S.token?.decimals);
+
+/* ---------- miktar ayrıştırma ---------- */
+function parseAmount(str, dec) {
+  let a = String(str).trim().replace(/[\s,;]+$/, "");
+  if (!a) return { err: "Miktar yazılmamış" };
+  a = a.replace(",", ".");
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(a)) return { err: "Geçersiz miktar (binlik ayırıcı kullanmayın)" };
+  try {
+    const v = ethers.parseUnits(a, dec);
+    if (v === 0n) return { err: "Miktar 0 olamaz" };
+    return { v };
+  } catch { return { err: `Çok fazla ondalık basamak (en fazla ${dec})` }; }
+}
+
+/* ---------- liste ayrıştırma ---------- */
+function parseList(text, equal, dec) {
+  const rows = [], errors = [], seen = new Map();
+  text.split(/\r?\n/).forEach((raw, idx) => {
+    const ln = idx + 1;
+    const line = raw.replace(/["'​﻿]/g, "").trim();
+    if (!line) return;
+    if (!/^0x/i.test(line)) {
+      if (rows.length === 0 && errors.length === 0) return; // başlık satırı
+      errors.push({ ln, raw, msg: "Satır 0x ile başlayan bir adresle başlamalı" }); return;
+    }
+    const addrStr = line.slice(0, 42);
+    if (line.length > 42 && /[0-9a-z]/i.test(line[42])) { errors.push({ ln, raw, msg: "Adres çok uzun" }); return; }
+    let addr;
+    try { addr = ethers.getAddress(addrStr); } catch { errors.push({ ln, raw, msg: "Geçersiz adres (eksik/hatalı karakter)" }); return; }
+    if (addr === ZERO) { errors.push({ ln, raw, msg: "Sıfır adres kullanılamaz" }); return; }
+    if (configured && addr.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { errors.push({ ln, raw, msg: "MultiSender kontratına gönderim yapılamaz" }); return; }
+    if (seen.has(addr)) { errors.push({ ln, raw, msg: `Tekrar eden adres (${seen.get(addr)}. satırla aynı)` }); return; }
+    let amount = null;
+    if (!equal) {
+      const r = parseAmount(line.slice(42).replace(/^[\s,;]+/, ""), dec);
+      if (r.err) { errors.push({ ln, raw, msg: r.err }); return; }
+      amount = r.v;
+    }
+    seen.set(addr, ln);
+    rows.push({ ln, raw, addr, amount });
+  });
+  return { rows, errors };
+}
+
+/* ---------- analiz ve özet ---------- */
+let analyzeTimer = null;
+function scheduleAnalyze() { clearTimeout(analyzeTimer); analyzeTimer = setTimeout(analyze, 250); }
+
+async function analyze() {
+  if (S.busy) return;
+  S.plan = null;
+  $("sendMsg").innerHTML = "";
+  $("resultCard").classList.add("hidden");
+  const out = $("checkOut"), sum = $("summary");
+  const text = $("list").value;
+  const equal = S.amountMode === "equal";
+  updateButtons();
+
+  if (!text.trim()) { out.innerHTML = ""; $("btnClean").classList.add("hidden"); sum.innerHTML = "Alıcı listesi girildiğinde özet burada görünür."; sum.className = "muted"; return; }
+  if (S.asset === "token" && !S.token) { out.innerHTML = `<div class="box warn">Önce geçerli bir token adresi girin.</div>`; sum.innerHTML = ""; return; }
+
+  const dec = decs();
+  const { rows, errors } = parseList(text, equal, dec);
+  let amountEach = null, amountErr = null;
+  if (equal) {
+    const r = parseAmount($("equalAmount").value, dec);
+    if (r.err) amountErr = $("equalAmount").value.trim() ? r.err : "Herkese gönderilecek miktarı yazın";
+    else amountEach = r.v;
+  }
+
+  // kontrol kutusu
+  let html = "";
+  if (rows.length) html += `<div class="box ok">✓ ${rows.length} geçerli alıcı</div>`;
+  if (errors.length) {
+    html += `<div class="box err"><b>${errors.length} satırda sorun var</b> — düzeltin ya da “Hatalı satırları temizle”ye basın:<ul class="errs">` +
+      errors.slice(0, 100).map((e) => `<li>${e.ln}. satır: ${esc(e.msg)} <span class="mono muted">${esc(e.raw.slice(0, 60))}</span></li>`).join("") +
+      (errors.length > 100 ? `<li>… ve ${errors.length - 100} satır daha</li>` : "") + `</ul></div>`;
+  }
+  if (amountErr) html += `<div class="box warn">${esc(amountErr)}</div>`;
+  out.innerHTML = html;
+  $("btnClean").classList.toggle("hidden", errors.length === 0);
+
+  if (!rows.length || errors.length || amountErr) {
+    sum.className = "muted";
+    sum.innerHTML = errors.length ? "Gönderim için önce hatalı satırları düzeltin." : (rows.length ? "" : "Geçerli alıcı yok.");
+    return;
+  }
+
+  // partiler
+  const batches = [];
+  for (let i = 0; i < rows.length; i += CONFIG.BATCH) batches.push({ rows: rows.slice(i, i + CONFIG.BATCH), done: false, hash: null, status: "" });
+  const total = equal ? amountEach * BigInt(rows.length) : rows.reduce((a, r) => a + r.amount, 0n);
+
+  sum.className = "";
+  sum.innerHTML = `<span class="muted">Hesaplanıyor…</span>`;
+  let fees = 0n, gasPrice = null;
+  try {
+    if (!configured) throw new Error("cfg");
+    for (const b of batches) { b.fee = await msRead.feeFor(b.rows.length); fees += b.fee; }
+  } catch { sum.innerHTML = `<div class="box err">Ücret kontrattan okunamadı. Kontrat adresi ve ağ doğru mu?</div>`; return; }
+  try { gasPrice = (await read.getFeeData()).gasPrice; } catch {}
+  const perR = S.asset === "bnb" ? CONFIG.GAS_PER_BNB : CONFIG.GAS_PER_TOKEN;
+  const gasUnits = BigInt(rows.length * perR + batches.length * CONFIG.GAS_BASE);
+  const gasCost = gasPrice ? gasUnits * gasPrice : null;
+
+  S.plan = { rows, batches, equal, amountEach, total, fees, gasCost, asset: S.asset, token: S.token };
+  renderSummary();
+}
+
+function renderSummary() {
+  const p = S.plan; if (!p) return;
+  const s = sym(), dec = decs();
+  const isBNB = p.asset === "bnb";
+  const needBNB = (isBNB ? p.total : 0n) + p.fees + (p.gasCost || 0n);
+  let h = `<div class="grid">
+    <div>Alıcı sayısı</div><div>${p.rows.length.toLocaleString("tr-TR")}</div>
+    <div>İşlem (parti) sayısı</div><div>${p.batches.length}${p.batches.length > 1 ? ` <span class="muted">(en fazla ${CONFIG.BATCH} alıcı/işlem)</span>` : ""}</div>
+    ${p.equal ? `<div>Kişi başı</div><div>${fmt(p.amountEach, dec)} ${esc(s)}</div>` : ""}
+    <div>Toplam gönderim</div><div>${fmt(p.total, dec)} ${esc(s)}</div>
+    <div>Hizmet ücreti</div><div>${fmt(p.fees, 18, 8)} BNB</div>
+    <div>Tahmini ağ ücreti (gaz)</div><div>${p.gasCost != null ? "~" + fmt(p.gasCost, 18, 6) + " BNB" : "—"}</div>
+    <div class="total">Cüzdanda gereken BNB</div><div class="total">~${fmt(needBNB, 18, 6)} BNB</div>
+    ${!isBNB ? `<div>Cüzdanda gereken token</div><div>${fmt(p.total, dec)} ${esc(s)}</div>` : ""}
+  </div>`;
+  if (!isBNB) h += `<div class="help">Vergili (tax) tokenlarda alıcıya token'ın kendi vergisi düşülmüş miktar ulaşır. MultiSender hiçbir kesinti yapmaz.</div>`;
+
+  // bakiye kontrolü
+  const warns = [];
+  if (S.account && S.bnbBalance != null && S.bnbBalance < needBNB) warns.push(`BNB bakiyeniz yetersiz: ${fmt(S.bnbBalance)} BNB var, ~${fmt(needBNB)} BNB gerekiyor.`);
+  if (S.account && !isBNB && S.token?.balance != null && S.token.balance < p.total) warns.push(`${esc(s)} bakiyeniz yetersiz: ${fmt(S.token.balance, dec)} var, ${fmt(p.total, dec)} gerekiyor.`);
+  if (warns.length) h += `<div class="box err">${warns.join("<br>")}</div>`;
+  p.balanceOk = warns.length === 0;
+
+  $("summary").innerHTML = h;
+  updateButtons();
+}
+
+/* ---------- butonlar ---------- */
+function updateButtons() {
+  const p = S.plan, isToken = S.asset === "token";
+  $("btnApprove").classList.toggle("hidden", !isToken);
+  $("approveNote").classList.toggle("hidden", !isToken);
+  const ready = !!p && configured && !S.busy;
+  if (!S.account) {
+    $("btnSend").textContent = "Göndermek için cüzdanı bağlayın";
+    $("btnSend").disabled = !ready;
+    $("btnApprove").disabled = true;
+    return;
+  }
+  const remaining = p ? p.batches.filter((b) => !b.done).length : 0;
+  const started = p && p.batches.some((b) => b.done);
+  $("btnSend").textContent = (started && remaining === 0) ? "Gönderildi ✓"
+    : isToken ? (started ? `2) Kalan ${remaining} partiyi gönder` : "2) Gönder") : (started ? `Kalan ${remaining} partiyi gönder` : "Gönder");
+  const needApprove = isToken && p && p.allowanceOk === false;
+  $("btnApprove").disabled = !ready || !needApprove || !p.balanceOk;
+  $("btnSend").disabled = !ready || remaining === 0 || !p.balanceOk || (isToken && p.allowanceOk !== true);
+  if (isToken && p && p.allowanceOk === true) $("btnApprove").textContent = "1) Onay verildi ✓";
+  else $("btnApprove").textContent = "1) Token harcama onayı ver";
+  if (isToken && p && S.account && p.allowanceOk === undefined) checkAllowance();
+}
+
+async function checkAllowance() {
+  const p = S.plan; if (!p || !S.token || !S.account) return;
+  p.allowanceOk = null;
+  try {
+    const need = p.batches.filter((b) => !b.done).reduce((a, b) => a + (p.equal ? p.amountEach * BigInt(b.rows.length) : b.rows.reduce((x, r) => x + r.amount, 0n)), 0n);
+    const al = await S.token.contract.allowance(S.account, CONFIG.CONTRACT);
+    if (S.plan !== p) return;
+    p.allowanceOk = al >= need;
+  } catch { p.allowanceOk = false; }
+  updateButtons();
+}
+
+/* ---------- cüzdan ---------- */
+async function ensureChain() {
+  const cid = await window.ethereum.request({ method: "eth_chainId" });
+  if (parseInt(cid, 16) === CONFIG.CHAIN_ID) return;
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CONFIG.CHAIN_HEX }] });
+  } catch (e) {
+    const code = e?.code ?? e?.data?.originalError?.code;
+    if (code === 4902) {
+      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
+        chainId: CONFIG.CHAIN_HEX, chainName: "BNB Smart Chain",
+        nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+        rpcUrls: [CONFIG.RPC], blockExplorerUrls: [CONFIG.EXPLORER] }] });
+    } else throw e;
+  }
+}
+
+async function connect() {
+  if (!window.ethereum) { $("noWallet").classList.remove("hidden"); return; }
+  try {
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    await ensureChain();
+    S.provider = new ethers.BrowserProvider(window.ethereum, "any");
+    S.signer = await S.provider.getSigner();
+    S.account = await S.signer.getAddress();
+    $("acct").textContent = S.account;
+    $("walletBox").classList.remove("hidden");
+    $("btnConnect").textContent = S.account.slice(0, 6) + "…" + S.account.slice(-4);
+    await refreshBalances();
+    if (S.token) S.token.contract = new ethers.Contract(S.token.address, ERC20_ABI, S.signer);
+    await refreshAdmin();
+    await analyze();
+  } catch (e) { showMsg(errMsg(e), "err"); }
+}
+
+async function refreshBalances() {
+  if (!S.account) return;
+  try { S.bnbBalance = await read.getBalance(S.account); $("bnbBal").textContent = fmt(S.bnbBalance) + " BNB"; } catch {}
+  if (S.token) { try { S.token.balance = await S.token.read.balanceOf(S.account); showTokenInfo(); } catch {} }
+}
+
+if (window.ethereum?.on) {
+  window.ethereum.on("accountsChanged", (a) => { if (!a.length) location.reload(); else connect(); });
+  window.ethereum.on("chainChanged", () => { if (S.account) connect(); });
+}
+
+/* ---------- token ---------- */
+async function loadToken() {
+  const v = $("tokenAddr").value.trim();
+  S.token = null; $("tokenInfo").innerHTML = "";
+  if (!v) { analyze(); return; }
+  let addr;
+  try { addr = ethers.getAddress(v); } catch { $("tokenInfo").innerHTML = `<span class="err">Geçersiz adres.</span>`; analyze(); return; }
+  $("tokenInfo").textContent = "Token okunuyor…";
+  try {
+    const r = new ethers.Contract(addr, ERC20_ABI, read);
+    const [name, symbol, decimals] = await Promise.all([r.name(), r.symbol(), r.decimals()]);
+    if ($("tokenAddr").value.trim() !== v) return;
+    S.token = { address: addr, name, symbol, decimals: Number(decimals), read: r,
+      contract: new ethers.Contract(addr, ERC20_ABI, S.signer || read), balance: null };
+    if (S.account) S.token.balance = await r.balanceOf(S.account);
+    showTokenInfo();
+  } catch { $("tokenInfo").innerHTML = `<span class="err">Bu adreste BNB Chain üzerinde bir token bulunamadı.</span>`; }
+  analyze();
+}
+function showTokenInfo() {
+  const t = S.token; if (!t) return;
+  $("tokenInfo").innerHTML = `<span class="ok">✓</span> <b>${esc(t.name)}</b> (${esc(t.symbol)}) · ${t.decimals} ondalık` +
+    (t.balance != null ? ` · Bakiyeniz: <b>${fmt(t.balance, t.decimals)} ${esc(t.symbol)}</b>` : "");
+}
+
+/* ---------- approve ---------- */
+async function doApprove() {
+  const p = S.plan; if (!p || !S.signer) return;
+  S.busy = true; updateButtons();
+  try {
+    const need = p.batches.filter((b) => !b.done).reduce((a, b) => a + (p.equal ? p.amountEach * BigInt(b.rows.length) : b.rows.reduce((x, r) => x + r.amount, 0n)), 0n);
+    showMsg("Cüzdanınızda onay işlemini onaylayın…", "warn");
+    const tx = await S.token.contract.approve(CONFIG.CONTRACT, need);
+    showMsg(`Onay işlemi gönderildi, bekleniyor… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
+    await tx.wait();
+    showMsg("Onay tamamlandı. Şimdi “Gönder”e basın.", "ok");
+    p.allowanceOk = undefined;
+  } catch (e) { showMsg(errMsg(e), "err"); }
+  S.busy = false; updateButtons();
+}
+
+/* ---------- gönderim ---------- */
+async function doSend() {
+  if (!S.account) { await connect(); return; }
+  const p = S.plan; if (!p) return;
+  S.busy = true; updateButtons();
+  $("resultCard").classList.remove("hidden");
+  renderBatches();
+  try {
+    await ensureChain();
+    const ms = new ethers.Contract(CONFIG.CONTRACT, MS_ABI, S.signer);
+    for (let i = 0; i < p.batches.length; i++) {
+      const b = p.batches[i]; if (b.done) continue;
+      const to = b.rows.map((r) => r.addr);
+      const fee = await msRead.feeFor(to.length);
+      let fn, args, value;
+      if (p.asset === "bnb") {
+        if (p.equal) { fn = "sendBNBEqual"; args = [to, p.amountEach]; value = p.amountEach * BigInt(to.length) + fee; }
+        else { const am = b.rows.map((r) => r.amount); fn = "sendBNB"; args = [to, am]; value = am.reduce((a, x) => a + x, 0n) + fee; }
+      } else {
+        value = fee;
+        if (p.equal) { fn = "sendTokenEqual"; args = [p.token.address, to, p.amountEach]; }
+        else { fn = "sendToken"; args = [p.token.address, to, b.rows.map((r) => r.amount)]; }
+      }
+      // Ön kontrol: işlem başarısız olacaksa cüzdanı açmadan önce sebebini göster
+      b.status = "Kontrol ediliyor…"; b.cls = "muted"; renderBatches();
+      await msRead[fn].staticCall(...args, { value, from: S.account });
+      // Gaz kontrolü: BSC'nin işlem başı gaz sınırını aşacaksa partiyi ikiye böl
+      let gasEst = null;
+      try { gasEst = await msRead[fn].estimateGas(...args, { value, from: S.account }); } catch {}
+      if (b.rows.length > 1 && (gasEst === null || gasEst > BigInt(CONFIG.TX_GAS_SAFE))) {
+        const half = Math.ceil(b.rows.length / 2);
+        p.batches.splice(i, 1,
+          { rows: b.rows.slice(0, half), done: false, hash: null, status: "" },
+          { rows: b.rows.slice(half), done: false, hash: null, status: "" });
+        // Bölünme sonrası hizmet ücretini yeniden hesapla ve özeti güncelle (kullanıcı ne ödeyeceğini görsün)
+        p.fees = 0n;
+        for (const x of p.batches) { x.fee = await msRead.feeFor(x.rows.length); p.fees += x.fee; }
+        renderSummary();
+        renderBatches(); i--; continue;
+      }
+      b.status = "Cüzdanda onay bekleniyor…"; b.cls = "warn"; renderBatches();
+      const tx = await ms[fn](...args, { value });
+      b.hash = tx.hash; b.status = "Gönderildi, onaylanması bekleniyor…"; renderBatches();
+      const rc = await tx.wait();
+      if (rc.status !== 1) throw new Error("İşlem başarısız oldu.");
+      b.done = true; b.status = "✓ Tamamlandı"; b.cls = "ok"; renderBatches();
+    }
+    showMsg(`🎉 Gönderim tamamlandı: ${p.rows.length} alıcı.`, "ok");
+  } catch (e) {
+    const b = p.batches.find((x) => !x.done);
+    if (b) { b.status = "✗ " + errMsg(e); b.cls = "err"; }
+    renderBatches();
+    showMsg(errMsg(e), "err");
+  }
+  S.busy = false;
+  await refreshBalances();
+  renderSummary();
+  if (p.asset === "token") { p.allowanceOk = undefined; }
+  updateButtons();
+}
+
+function renderBatches() {
+  const p = S.plan; if (!p) return;
+  $("batches").innerHTML = p.batches.map((b, i) => `
+    <div class="batch">
+      <div><b>Parti ${i + 1}/${p.batches.length}</b> <span class="muted">· ${b.rows.length} alıcı</span></div>
+      <div><span class="${b.cls || "muted"}">${esc(b.status || "Sırada")}</span>
+      ${b.hash ? ` · <a href="${CONFIG.EXPLORER}/tx/${b.hash}" target="_blank" rel="noopener">BscScan'de gör</a>` : ""}</div>
+    </div>`).join("");
+}
+
+function showMsg(html, cls) { $("sendMsg").innerHTML = `<div class="box ${cls}">${html}</div>`; }
+
+function errMsg(e) {
+  const code = e?.code ?? e?.info?.error?.code;
+  if (code === "ACTION_REJECTED" || code === 4001) return "İşlemi cüzdanda reddettiniz.";
+  const map = {
+    NotEnoughBNB: "Gönderilen BNB yetersiz (gönderim + hizmet ücreti).",
+    TokenTransferFailed: "Token transferi başarısız. Onay (approve) veya token bakiyesi yetersiz olabilir.",
+    BNBTransferFailed: "Alıcılardan biri BNB kabul etmiyor (BNB almayan bir kontrat adresi olabilir). Bu adresi listeden çıkarın.",
+    ZeroAddress: "Listede sıfır adres veya MultiSender kontratının kendi adresi var.",
+    TooManyRecipients: `Bir işlemde en fazla ${CONFIG.BATCH} alıcı olabilir.`,
+    LengthMismatch: "Adres ve miktar sayısı uyuşmuyor.",
+    NotOwner: "Bu işlemi sadece kontrat sahibi yapabilir.",
+    AboveCeiling: "Ücret, kontrattaki sabit tavanın üstüne çıkamaz."
+  };
+  let name = e?.revert?.name, args = e?.revert?.args;
+  if (!name) { // bazı cüzdanlar hata kodunu farklı yerde döndürür
+    const cands = [e?.data, e?.info?.error?.data, e?.error?.data, e?.data?.data, e?.info?.error?.data?.data];
+    const m = String(e?.message || "").match(/0x[0-9a-fA-F]{8,}/); if (m) cands.push(m[0]);
+    for (const d of cands) {
+      if (typeof d !== "string" || !d.startsWith("0x")) continue;
+      try { const pe = MS_IFACE.parseError(d); if (pe) { name = pe.name; args = pe.args; break; } } catch {}
+    }
+  }
+  if (name && map[name]) return map[name] + (args?.[0] ? ` Adres: ${args[0]}` : "");
+  if (code === "INSUFFICIENT_FUNDS" || /insufficient funds/i.test(e?.message || "")) return "Cüzdanda yeterli BNB yok (gönderim + ücret + gaz).";
+  return e?.shortMessage || e?.reason || e?.message || String(e);
+}
+
+/* ---------- onay penceresi ("Emin misiniz?") ---------- */
+function confirmBox({ title, rows, warning, checkbox, okText = "Evet, eminim", danger = false }) {
+  return new Promise((resolve) => {
+    const bg = document.createElement("div");
+    bg.className = "modal-bg";
+    bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
+      <h3>${esc(title)}</h3>
+      <div class="grid">${rows.map(([k, v]) => `<div>${esc(k)}</div><div class="mono">${esc(v)}</div>`).join("")}</div>
+      ${warning ? `<div class="box ${danger ? "err" : "warn"}">${warning}</div>` : ""}
+      ${checkbox ? `<label class="chk"><input type="checkbox" id="mChk"> <span>${esc(checkbox)}</span></label>` : ""}
+      <div class="row" style="justify-content:flex-end;margin-top:16px">
+        <button id="mNo">Vazgeç</button>
+        <button id="mYes" class="${danger ? "danger" : "primary"}" ${checkbox ? "disabled" : ""}>${esc(okText)}</button>
+      </div></div>`;
+    document.body.appendChild(bg);
+    const done = (v) => { bg.remove(); resolve(v); };
+    bg.querySelector("#mNo").onclick = () => done(false);
+    bg.querySelector("#mYes").onclick = () => done(true);
+    bg.addEventListener("click", (e) => { if (e.target === bg) done(false); });
+    if (checkbox) bg.querySelector("#mChk").onchange = (e) => { bg.querySelector("#mYes").disabled = !e.target.checked; };
+  });
+}
+
+/* ---------- yönetim paneli ---------- */
+const A_ = { owner: null, receiver: null, per: null, cap: null, maxPer: null, maxCap: null };
+
+async function refreshAdmin() {
+  if (!configured || !S.account) return;
+  try {
+    [A_.owner, A_.receiver, A_.per, A_.cap, A_.maxPer, A_.maxCap] = await Promise.all([
+      msRead.owner(), msRead.feeReceiver(), msRead.feePerRecipient(), msRead.feeCap(),
+      msRead.MAX_FEE_PER_RECIPIENT(), msRead.MAX_FEE_CAP()]);
+  } catch { return; }
+  const isOwner = A_.owner.toLowerCase() === S.account.toLowerCase();
+  $("adminCard").classList.toggle("hidden", !isOwner);
+  if (!isOwner) return;
+  $("adminInfo").innerHTML = `
+    <div>Sahip</div><div class="mono">${A_.owner}</div>
+    <div>Ücretin gittiği cüzdan</div><div class="mono">${A_.receiver}</div>
+    <div>Alıcı başı ücret</div><div>${fmt(A_.per, 18, 8)} BNB</div>
+    <div>İşlem başı tavan</div><div>${fmt(A_.cap, 18, 8)} BNB</div>`;
+  $("maxPer").textContent = fmt(A_.maxPer, 18, 8);
+  $("maxCap").textContent = fmt(A_.maxCap, 18, 8);
+  $("feeInfo").textContent = `alıcı başına ${fmt(A_.per, 18, 8)} BNB, işlem başına en fazla ${fmt(A_.cap, 18, 8)} BNB.`;
+}
+
+function adminMsg(html, cls) { $("adminMsg").innerHTML = `<div class="box ${cls}">${html}</div>`; }
+
+async function adminTx(fnName, args, label) {
+  try {
+    await ensureChain();
+    const ms = new ethers.Contract(CONFIG.CONTRACT, MS_ABI, S.signer);
+    await msRead[fnName].staticCall(...args, { from: S.account }); // önce dene: hata varsa cüzdan açılmadan göster
+    adminMsg("Cüzdanınızda işlemi onaylayın…", "warn");
+    const tx = await ms[fnName](...args);
+    adminMsg(`İşlem gönderildi, bekleniyor… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
+    await tx.wait();
+    adminMsg(`✓ ${esc(label)}`, "ok");
+    await refreshAdmin();
+  } catch (e) { adminMsg(esc(errMsg(e)), "err"); }
+}
+
+async function onSetFees() {
+  const parseFee = (s) => { s = s.trim(); if (/^0+([.,]0*)?$/.test(s)) return 0n; return s ? parseAmount(s, 18).v : undefined; };
+  const per = parseFee($("inPer").value), cap = parseFee($("inCap").value);
+  if (per === undefined || cap === undefined) { adminMsg("Geçerli bir BNB miktarı yazın (0 = ücretsiz).", "err"); return; }
+  if (per > A_.maxPer || cap > A_.maxCap) { adminMsg("Ücret, kontrattaki sabit tavanın üstüne çıkamaz.", "err"); return; }
+  const ok = await confirmBox({
+    title: "Ücreti değiştirmek istediğinize emin misiniz?",
+    rows: [["Alıcı başı: şimdiki", fmt(A_.per, 18, 8) + " BNB"], ["Alıcı başı: yeni", fmt(per, 18, 8) + " BNB"],
+           ["Tavan: şimdiki", fmt(A_.cap, 18, 8) + " BNB"], ["Tavan: yeni", fmt(cap, 18, 8) + " BNB"]],
+    warning: "Yeni ücret bu işlem onaylandığı anda tüm kullanıcılar için geçerli olur."
+  });
+  if (ok) await adminTx("setFees", [per, cap], "Ücret güncellendi.");
+}
+
+async function onSetReceiver() {
+  let addr; try { addr = ethers.getAddress($("inReceiver").value.trim()); } catch { adminMsg("Geçersiz adres.", "err"); return; }
+  if (addr === ZERO) { adminMsg("Sıfır adres olamaz.", "err"); return; }
+  const ok = await confirmBox({
+    title: "Ücret cüzdanını değiştirmek istediğinize emin misiniz?",
+    rows: [["Şimdiki", A_.receiver], ["Yeni", addr]],
+    warning: "Bundan sonraki tüm ücretler yeni adrese gider. Adresi harf harf kontrol edin.",
+    checkbox: "Yeni adresi kontrol ettim, bu cüzdana erişimim var."
+  });
+  if (ok) await adminTx("setFeeReceiver", [addr], "Ücret cüzdanı değiştirildi.");
+}
+
+async function onTransfer() {
+  const raw = $("inOwner").value.trim();
+  let addr; try { addr = ethers.getAddress(raw); } catch { adminMsg("Geçersiz adres.", "err"); return; }
+  const renounce = addr === ZERO;
+  if (addr.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { adminMsg("Sahiplik kontratın kendisine devredilemez.", "err"); return; }
+  const ok1 = await confirmBox({
+    title: renounce ? "Sahipliği tamamen bırakmak istediğinize emin misiniz?" : "Sahipliği devretmek istediğinize emin misiniz?",
+    rows: [["Şimdiki sahip", A_.owner], ["Yeni sahip", renounce ? "YOK (sahiplik bırakılır)" : addr]],
+    warning: renounce
+      ? "<b>Bu işlem geri alınamaz.</b> Ücretler şu anki haliyle sonsuza kadar sabit kalır, kimse değiştiremez."
+      : "<b>Bu işlem geri alınamaz.</b> Tek adımlıdır: yanlış adres yazarsanız kontratın kontrolünü kalıcı olarak kaybedersiniz.",
+    checkbox: renounce ? "Sahipliği bıraktığımda bir daha ücret değiştiremeyeceğimi anlıyorum." : "Adresi harf harf kontrol ettim, bu cüzdana erişimim var.",
+    okText: "Devam", danger: true
+  });
+  if (!ok1) return;
+  const ok2 = await confirmBox({
+    title: "Son onay",
+    rows: [["Yeni sahip", renounce ? "YOK" : addr]],
+    warning: "Gerçekten emin misiniz? Bu adımdan sonra cüzdanınız işlemi imzalamanızı isteyecek.",
+    okText: "Evet, devret", danger: true
+  });
+  if (ok2) await adminTx("transferOwnership", [addr], renounce ? "Sahiplik bırakıldı." : "Sahiplik devredildi.");
+}
+
+/* ---------- arayüz olayları ---------- */
+function seg(id, key, after) {
+  $(id).querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    if (S.busy) return;
+    $(id).querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+    S[key] = b.dataset.v; after();
+  }));
+}
+seg("segAsset", "asset", () => {
+  $("tokenArea").classList.toggle("hidden", S.asset !== "token");
+  if (S.asset === "token" && $("tokenAddr").value.trim() && !S.token) loadToken(); else analyze();
+});
+seg("segAmount", "amountMode", () => {
+  const eq = S.amountMode === "equal";
+  $("equalArea").classList.toggle("hidden", !eq);
+  $("helpEqual").classList.toggle("hidden", !eq);
+  $("helpDiff").classList.toggle("hidden", eq);
+  $("listLabel").textContent = eq ? "Her satıra bir adres" : "Her satıra bir alıcı: adres, miktar";
+  $("list").placeholder = eq
+    ? "0x1111111111111111111111111111111111111111\n0x2222222222222222222222222222222222222222\n0x3333333333333333333333333333333333333333"
+    : "0x1111111111111111111111111111111111111111, 1.5\n0x2222222222222222222222222222222222222222, 20\n0x3333333333333333333333333333333333333333; 0,25";
+  analyze();
+});
+
+$("btnConnect").addEventListener("click", connect);
+$("btnSetFees").addEventListener("click", onSetFees);
+$("btnSetReceiver").addEventListener("click", onSetReceiver);
+$("btnTransfer").addEventListener("click", onTransfer);
+$("list").addEventListener("input", scheduleAnalyze);
+$("equalAmount").addEventListener("input", scheduleAnalyze);
+let tokenTimer = null;
+$("tokenAddr").addEventListener("input", () => { clearTimeout(tokenTimer); tokenTimer = setTimeout(loadToken, 400); });
+$("btnApprove").addEventListener("click", doApprove);
+$("btnSend").addEventListener("click", doSend);
+$("btnFile").addEventListener("click", () => $("file").click());
+$("file").addEventListener("change", async (ev) => {
+  const f = ev.target.files[0]; if (!f) return;
+  $("list").value = await f.text(); ev.target.value = ""; analyze();
+});
+$("btnTemplate").addEventListener("click", () => {
+  const eq = S.amountMode === "equal";
+  const csv = eq
+    ? "adres\n0x1111111111111111111111111111111111111111\n0x2222222222222222222222222222222222222222\n"
+    : "adres,miktar\n0x1111111111111111111111111111111111111111,1.5\n0x2222222222222222222222222222222222222222,20\n";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = eq ? "multisender-adresler.csv" : "multisender-ornek.csv"; a.click();
+});
+$("btnClean").addEventListener("click", () => {
+  const { rows } = parseList($("list").value, S.amountMode === "equal", decs());
+  $("list").value = rows.map((r) => r.raw.trim()).join("\n"); analyze();
+});
+
+/* ---------- başlangıç ---------- */
+(async function init() {
+  $("contractLink").textContent = configured ? CONFIG.CONTRACT : "henüz ayarlanmadı";
+  if (configured) $("contractLink").href = `${CONFIG.EXPLORER}/address/${CONFIG.CONTRACT}#code`;
+  else $("cfgWarn").classList.remove("hidden");
+  const here = location.host + location.pathname;
+  $("mmLink").href = "https://metamask.app.link/dapp/" + here;
+  $("twLink").href = "https://link.trustwallet.com/open_url?coin_id=20000714&url=" + encodeURIComponent(location.href);
+  try {
+    if (!configured) throw 0;
+    const [per, cap] = await Promise.all([msRead.feePerRecipient(), msRead.feeCap()]);
+    $("feeInfo").textContent = `alıcı başına ${fmt(per, 18, 8)} BNB, işlem başına en fazla ${fmt(cap, 18, 8)} BNB.`;
+  } catch { $("feeInfo").textContent = "kontrat bağlanınca gösterilir."; }
+  updateButtons();
+})();
+</script>
+</body>
+</html>

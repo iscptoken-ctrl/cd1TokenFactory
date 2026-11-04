@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BNB Staking Pools</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --text: #1d1d1b; --muted: #6b6a64; --line: #e3e1da;
+    --accent: #c99a06; --accent-ink: #1d1d1b; --ok: #1f8a4c; --err: #c0392b; --warn: #a86a00;
+    --soft: #faf8f2; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121210; --card: #1b1b18; --text: #eeede8; --muted: #9c9a92; --line: #2e2d29;
+      --accent: #f0b90b; --accent-ink: #121210; --ok: #4cc27f; --err: #ff6b5b; --warn: #f0b90b; --soft: #22221e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121210; --card: #1b1b18; --text: #eeede8; --muted: #9c9a92; --line: #2e2d29;
+    --accent: #f0b90b; --accent-ink: #121210; --ok: #4cc27f; --err: #ff6b5b; --warn: #f0b90b; --soft: #22221e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+  .step { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+  .num { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--soft); color: var(--text); padding: 9px 14px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button.small { padding: 6px 10px; font-size: 13px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex-wrap: wrap; }
+  .seg button { border: 0; border-radius: 0; background: transparent; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  input { width: 100%; font: inherit; color: var(--text); background: var(--soft);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  input[type=checkbox] { width: auto; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+  label.inline { display: flex; gap: 8px; align-items: center; color: var(--text); font-size: 14px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  @media (max-width: 520px) { .two { grid-template-columns: 1fr; } }
+  .field-err { color: var(--err); font-size: 12px; margin-top: 4px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .mono { font-family: var(--mono); font-size: 13px; word-break: break-all; }
+  .ok { color: var(--ok); } .err { color: var(--err); } .warn { color: var(--warn); }
+  .box { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
+  .box.err { background: color-mix(in srgb, var(--err) 10%, transparent); }
+  .box.warn { background: color-mix(in srgb, var(--warn) 12%, transparent); }
+  .box.ok { background: color-mix(in srgb, var(--ok) 10%, transparent); }
+  .help { background: var(--soft); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .help b { color: var(--text); }
+  .grid { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 14px; }
+  .grid div:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .grid .total { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+  .guarantees { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+  .guarantees div { background: var(--soft); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+  .pool { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 10px; }
+  .pool.hl { border-color: var(--accent); }
+  .pool-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .pool-title { font-weight: 600; font-size: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+  .stat { background: var(--soft); border-radius: 10px; padding: 8px 10px; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-weight: 600; font-variant-numeric: tabular-nums; word-break: break-word; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); vertical-align: middle; }
+  .tag.fac { color: var(--ok); border-color: var(--ok); }
+  .tag.live { color: var(--ok); border-color: var(--ok); }
+  .tag.wait { color: var(--warn); border-color: var(--warn); }
+  .tag.end { color: var(--muted); }
+  .me { background: var(--soft); border-radius: 10px; padding: 12px; margin-top: 10px; }
+  .me .row input { flex: 1; min-width: 120px; }
+  a { color: var(--accent); }
+  .hidden { display: none !important; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 20px; }
+  .eco { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .eco a { display: block; text-decoration: none; color: var(--text); background: var(--soft);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .eco a:hover { border-color: var(--accent); }
+  .eco b { color: var(--accent); }
+  .admin { border-color: var(--warn); }
+  .admin h3 { margin: 16px 0 6px; font-size: 14px; }
+  .admin .row input { flex: 1; min-width: 160px; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; padding: 16px; z-index: 50; }
+  .modal { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; max-width: 480px; width: 100%; max-height: calc(100vh - 32px); overflow: auto; }
+  .modal h3 { margin: 0 0 10px; }
+  .modal .grid { margin: 10px 0; }
+  .modal .grid div:nth-child(even) { word-break: break-all; }
+  .modal label.chk { display: flex; gap: 8px; align-items: flex-start; color: var(--text); font-size: 14px; margin: 12px 0 0; }
+  .modal label.chk input { width: auto; margin-top: 3px; }
+  button.danger { background: var(--err); border-color: var(--err); color: #fff; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>BNB <span>Staking Pools</span></h1>
+    <button id="btnConnect" class="primary">Connect Wallet</button>
+  </header>
+  <p class="sub">Stake tokens to earn rewards, or launch a staking pool for any BEP-20 token. <span id="feeInfo">Fees loading…</span></p>
+
+  <div id="cfgWarn" class="box err hidden">Contract address is not set yet. Update the <code>CONFIG.CONTRACT</code> line in this file.</div>
+
+  <div id="walletBox" class="card hidden">
+    <div class="row" style="justify-content:space-between">
+      <div><div class="muted">Connected wallet</div><div id="acct" class="mono"></div></div>
+      <div style="text-align:right"><div class="muted">BNB balance</div><div id="bnbBal" style="font-weight:600"></div></div>
+    </div>
+  </div>
+
+  <div id="noWallet" class="card hidden">
+    <b>No wallet found.</b>
+    <p class="muted">On desktop, install the MetaMask extension. On mobile, open this page inside your wallet app:</p>
+    <div class="row">
+      <a id="mmLink"><button>Open in MetaMask</button></a>
+      <a id="twLink"><button>Open in Trust Wallet</button></a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step">Rules every pool follows</div>
+    <div class="guarantees">
+      <div>✓ All rewards are deposited up front</div>
+      <div>✓ The pool creator can never withdraw the rewards</div>
+      <div>✓ The reward timer starts with the first staker</div>
+      <div>✓ Timer pauses while the pool is empty, so 100% of rewards go to stakers</div>
+      <div>✓ Claim rewards any time</div>
+      <div>✓ Lock (if any) ends when the reward period ends</div>
+      <div>✓ Emergency withdraw: get your full stake back any time, without rewards</div>
+    </div>
+  </div>
+
+  <!-- Pools -->
+  <div class="card">
+    <div class="pool-head">
+      <div class="step" style="margin:0">Pools</div>
+      <div class="seg" id="segFilter">
+        <button data-v="all" class="on">All</button>
+        <button data-v="active">Active</button>
+        <button data-v="mine">My stakes</button>
+        <button data-v="created">Created by me</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input id="inSearch" placeholder="Search by token or pool address 0x…" spellcheck="false" autocomplete="off" style="flex:1">
+      <label class="inline"><input type="checkbox" id="chkFactory"> Factory tokens only</label>
+    </div>
+    <div id="poolsMsg"></div>
+    <div id="pools" class="muted" style="margin-top:6px">Loading…</div>
+    <div class="row" style="margin-top:10px"><button id="btnMore" class="hidden">Load more</button></div>
+  </div>
+
+  <!-- Create -->
+  <div class="card" id="createCard">
+    <div class="step"><span class="num">+</span>Create a staking pool</div>
+    <label for="inStake">Stake token address (what users stake)</label>
+    <input id="inStake" placeholder="0x…" spellcheck="false" autocomplete="off">
+    <div id="stakeInfo" class="muted" style="margin-top:6px"></div>
+    <label class="inline" style="margin-top:12px"><input type="checkbox" id="chkSame" checked> Rewards are paid in the same token</label>
+    <div id="rewardTokArea" class="hidden">
+      <label for="inReward">Reward token address</label>
+      <input id="inReward" placeholder="0x…" spellcheck="false" autocomplete="off">
+      <div id="rewardInfo" class="muted" style="margin-top:6px"></div>
+    </div>
+    <label for="inAmount">Total reward amount</label>
+    <input id="inAmount" placeholder="e.g. 100000" inputmode="decimal" autocomplete="off">
+    <div class="field-err" id="errAmount"></div>
+    <div class="two">
+      <div>
+        <label for="inDays">Reward period (days, 1–1825)</label>
+        <input id="inDays" value="30" inputmode="numeric" autocomplete="off">
+        <div class="field-err" id="errDays"></div>
+      </div>
+      <div>
+        <label for="inLock">Lock per stake (days, 0–365, 0 = no lock)</label>
+        <input id="inLock" value="0" inputmode="numeric" autocomplete="off">
+        <div class="field-err" id="errLock"></div>
+      </div>
+    </div>
+    <div class="help">
+      <b>How it works</b><br>
+      • The full reward amount is sent to the pool when you create it and can <b>never</b> be taken back.<br>
+      • Rewards are paid out every second, split by stake size. The period starts with the first staker and pauses while nobody is staked.<br>
+      • With a lock, each stake (and each new top-up) is locked for that many days. Rewards can still be claimed any time. Stakers can always leave early with an emergency withdraw, giving up their pending rewards to the remaining stakers.<br>
+      • Tokens with transfer tax: the pool counts what actually arrives. Rebasing/reflection tokens are not supported.
+    </div>
+    <label class="inline" style="margin-top:12px"><input type="checkbox" id="chkList"> <span>List my pool on this page <span class="muted" id="listFeeTxt"></span></span></label>
+    <div class="muted" style="margin-top:4px">Optional. Unlisted pools work exactly the same; you share their link yourself. You can list or remove it later. The listing fee is paid once per pool.</div>
+    <div id="createSummary" class="muted" style="margin-top:12px"></div>
+    <div id="createMsg"></div>
+    <div class="row" style="margin-top:14px">
+      <button id="btnApproveReward" class="primary hidden">1) Approve reward tokens</button>
+      <button id="btnCreate" class="primary" disabled>Create pool</button>
+    </div>
+  </div>
+
+  <!-- Ecosystem -->
+  <div class="card">
+    <div class="step">CD1 ecosystem</div>
+    <div class="eco">
+      <a href="/token-factory/" target="_blank" rel="noopener"><b>Token Factory</b><br><span class="muted">Create your own BEP-20 token for a flat fee.</span></a>
+      <a href="/" target="_blank" rel="noopener"><b>MultiSender</b><br><span class="muted">Airdrop tokens to hundreds of wallets at once.</span></a>
+      <a href="https://bnbp2p.vercel.app" target="_blank" rel="noopener"><b>CD1 Exchange</b><br><span class="muted">Trade tokens peer-to-peer.</span></a>
+      <a href="https://cd1satominer.vercel.app/" target="_blank" rel="noopener"><b>CD1 Sat Miner</b><br><span class="muted">Bitcoin-mining themed staking game.</span></a>
+    </div>
+  </div>
+
+  <!-- Admin -->
+  <div class="card admin hidden" id="adminCard">
+    <div class="step">Admin panel <span class="muted" style="font-weight:400">(visible to owner only)</span></div>
+    <div class="grid" id="adminInfo"></div>
+    <div class="muted" style="margin-top:8px">The factory owner has no access to pools, staked tokens or rewards.</div>
+    <h3>Pool creation fee</h3>
+    <div class="muted">The fee can only be lowered, never raised.</div>
+    <div class="row" style="margin-top:8px">
+      <input id="inFee" placeholder="New fee (BNB)" inputmode="decimal">
+      <button id="btnLowerFee">Lower fee</button>
+    </div>
+    <h3>Listing fee</h3>
+    <div class="muted">Can only be lowered, never raised.</div>
+    <div class="row" style="margin-top:8px">
+      <input id="inListFee" placeholder="New listing fee (BNB)" inputmode="decimal">
+      <button id="btnLowerListFee">Lower listing fee</button>
+    </div>
+    <h3>Rescue tokens sent to the factory by mistake</h3>
+    <div class="row" style="margin-top:8px">
+      <input id="inRescue" placeholder="Token address 0x…" spellcheck="false">
+      <button id="btnRescue">Check &amp; rescue</button>
+    </div>
+    <h3>Transfer ownership</h3>
+    <div class="muted">Single step: if you enter a wrong address, control of the factory cannot be recovered.</div>
+    <div class="row" style="margin-top:8px">
+      <input id="inOwner" placeholder="New owner 0x…" spellcheck="false">
+      <button id="btnTransfer" class="danger">Transfer</button>
+    </div>
+    <div id="adminMsg"></div>
+  </div>
+
+  <footer>
+    Staking factory: <a id="contractLink" target="_blank" rel="noopener"></a><br>
+    The creation fee goes straight to the owner wallet. The factory and its owner hold no user funds and have no control over pools.
+  </footer>
+</div>
+
+<script>
+/* ================== SETTINGS ================== */
+const CONFIG = {
+  CONTRACT: "0x8Cf5B7E4300Eda050fB09a4DB2524ddeddc93f5C", // BSC mainnet, verified
+  TOKEN_FACTORY: "0x60FD20b53df5e1eD6757C385AcD07987f8285DB6", // for the "Factory token" badge
+  CHAIN_ID: 56,
+  CHAIN_HEX: "0x38",
+  RPC: "https://bsc-dataseed.bnbchain.org",
+  EXPLORER: "https://bscscan.com",
+  PAGE: 15,
+  SCAN: 60     // pools scanned per request when looking for listed pools
+};
+/* ============================================= */
+
+const SF_ABI = [
+  "function creationFee() view returns (uint256)", "function listingFee() view returns (uint256)", "function owner() view returns (address)",
+  "function isListed(address) view returns (bool)", "function listingPaid(address) view returns (bool)",
+  "function listedSlice(uint256 start, uint256 count) view returns (address[])",
+  "function listPool(address pool) payable", "function unlistPool(address pool)", "function lowerListingFee(uint256 newFee)",
+  "error NotPool()", "error NotPoolCreator()", "error AlreadyListed()", "error NotListed()",
+  "function totalPools() view returns (uint256)", "function poolsSlice(uint256 start, uint256 count) view returns (address[])",
+  "function poolsByCreator(address) view returns (address[])", "function poolsByStakeToken(address) view returns (address[])",
+  "function isPool(address) view returns (bool)",
+  "function MIN_DURATION() view returns (uint256)", "function MAX_DURATION() view returns (uint256)", "function MAX_LOCK() view returns (uint256)",
+  "function createPool(address stakeToken, address rewardToken, uint256 rewardAmount, uint256 duration, uint256 lockPeriod, bool list) payable returns (address)",
+  "function lowerFee(uint256 newFee)", "function rescueToken(address token, uint256 amount)", "function transferOwnership(address newOwner)",
+  "event PoolCreated(address indexed pool, address indexed creator, address indexed stakeToken, address rewardToken, uint256 rewardAmount, uint256 duration, uint256 lockPeriod)",
+  "error WrongFee()", "error FeeCanOnlyDecrease()", "error ZeroAddress()", "error ZeroAmount()", "error BadDuration()", "error BadLock()",
+  "error RewardTooSmall()", "error TransferFailed()", "error OwnableUnauthorizedAccount(address account)", "error OwnableInvalidOwner(address owner)",
+  "error SafeERC20FailedOperation(address token)", "error NoRewardReceived()"
+];
+const POOL_ABI = [
+  "function info() view returns (address stakeToken, address rewardToken, address creator, uint256 totalReward, uint256 duration, uint256 timeLeft, uint256 lockPeriod, uint256 totalStaked, uint256 totalPaid, uint256 stakersCount, uint256 rewardRateX)",
+  "function userInfo(address) view returns (uint256 staked, uint256 pending, uint256 unlockAt)",
+  "function stake(uint256 amount)", "function withdraw(uint256 amount)", "function claim()", "function exit()", "function emergencyWithdraw()",
+  "error ZeroAmount()", "error PoolEnded()", "error Locked(uint256 unlockTime)", "error InsufficientBalance()",
+  "error NotInitialized()", "error SafeERC20FailedOperation(address token)", "error ReentrancyGuardReentrantCall()"
+];
+const ERC20_ABI = [
+  "function name() view returns (string)", "function symbol() view returns (string)", "function decimals() view returns (uint8)",
+  "function balanceOf(address) view returns (uint256)", "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)"
+];
+const TF_ABI = ["function isFactoryToken(address) view returns (bool)"];
+
+const IFACES = [new ethers.Interface(SF_ABI), new ethers.Interface(POOL_ABI)];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ZERO = "0x0000000000000000000000000000000000000000";
+const configured = CONFIG.CONTRACT.toLowerCase() !== ZERO;
+const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
+const DAY = 86400;
+
+const read = new ethers.JsonRpcProvider(CONFIG.RPC, CONFIG.CHAIN_ID, { staticNetwork: true });
+const sf = new ethers.Contract(CONFIG.CONTRACT, SF_ABI, read);
+const tf = new ethers.Contract(CONFIG.TOKEN_FACTORY, TF_ABI, read);
+
+const S = { signer: null, account: null, bnbBalance: null, fee: null, listFee: null, owner: null,
+  filter: "all", loaded: [], nextIdx: null, busy: false, create: null };
+
+function fmt(v, dec = 18, max = 4) {
+  // round half-up at the shown precision (e.g. 99.99999 -> 100)
+  if (dec > max) v = BigInt(v) + 5n * 10n ** BigInt(dec - max - 1);
+  const s = ethers.formatUnits(v, dec);
+  const [i, f = ""] = s.split(".");
+  const ff = f.slice(0, max).replace(/0+$/, "");
+  return BigInt(i).toLocaleString("en-US") + (ff ? "." + ff : "");
+}
+function dur(sec) {
+  sec = Number(sec);
+  if (sec <= 0) return "0";
+  const d = Math.floor(sec / DAY), h = Math.floor((sec % DAY) / 3600), m = Math.floor((sec % 3600) / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  return `${Math.max(1, m)}m`;
+}
+function parseAmt(str, dec) {
+  const a = String(str).trim();
+  if (!a) return { err: "Required" };
+  if (a.includes(",")) return { err: "Use a dot for decimals and no thousand separators" };
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(a)) return { err: "Invalid amount" };
+  try { const v = ethers.parseUnits(a, dec); return v === 0n ? { err: "Must be greater than 0" } : { v }; }
+  catch { return { err: `Too many decimal places (max ${dec})` }; }
+}
+
+/* ---------- token cache ---------- */
+const TOK = new Map(), FACT = new Map();
+async function tok(addr) {
+  const k = addr.toLowerCase();
+  if (!TOK.has(k)) TOK.set(k, (async () => {
+    const c = new ethers.Contract(addr, ERC20_ABI, read);
+    const [name, symbol, decimals] = await Promise.all([c.name(), c.symbol(), c.decimals()]);
+    return { addr: ethers.getAddress(addr), name, symbol, decimals: Number(decimals) };
+  })());
+  return TOK.get(k);
+}
+async function isFactoryTok(addr) {
+  const k = addr.toLowerCase();
+  if (!FACT.has(k)) FACT.set(k, tf.isFactoryToken(addr).catch(() => false));
+  return FACT.get(k);
+}
+
+/* ---------- wallet ---------- */
+async function ensureChain() {
+  const cid = await window.ethereum.request({ method: "eth_chainId" });
+  if (parseInt(cid, 16) === CONFIG.CHAIN_ID) return;
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CONFIG.CHAIN_HEX }] });
+  } catch (e) {
+    const code = e?.code ?? e?.data?.originalError?.code;
+    if (code === 4902) {
+      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
+        chainId: CONFIG.CHAIN_HEX, chainName: "BNB Smart Chain", nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+        rpcUrls: [CONFIG.RPC], blockExplorerUrls: [CONFIG.EXPLORER] }] });
+    } else throw e;
+  }
+}
+async function connect() {
+  if (!window.ethereum) { $("noWallet").classList.remove("hidden"); return; }
+  try {
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    await ensureChain();
+    const provider = new ethers.BrowserProvider(window.ethereum, "any");
+    S.signer = await provider.getSigner();
+    S.account = await S.signer.getAddress();
+    $("acct").textContent = S.account;
+    $("walletBox").classList.remove("hidden");
+    $("btnConnect").textContent = short(S.account);
+    await refreshBalance();
+    await refreshAdmin();
+    await reloadPools();
+    await updateCreate();
+  } catch (e) { msg("poolsMsg", esc(errMsg(e)), "err"); }
+}
+async function refreshBalance() {
+  if (!S.account) return;
+  try { S.bnbBalance = await read.getBalance(S.account); $("bnbBal").textContent = fmt(S.bnbBalance, 18, 6) + " BNB"; } catch {}
+}
+if (window.ethereum?.on) {
+  window.ethereum.on("accountsChanged", (a) => { if (!a.length) location.reload(); else connect(); });
+  window.ethereum.on("chainChanged", () => { if (S.account) connect(); });
+}
+
+/* ---------- pools ---------- */
+async function poolData(addr) {
+  const p = new ethers.Contract(addr, POOL_ABI, read);
+  const i = await p.info();
+  const [st, rt, stFac, rtFac] = await Promise.all([tok(i.stakeToken), tok(i.rewardToken), isFactoryTok(i.stakeToken), isFactoryTok(i.rewardToken)]);
+  const d = { addr: ethers.getAddress(addr), st, rt, stFac, rtFac, creator: i.creator, totalReward: i.totalReward, duration: i.duration,
+    timeLeft: i.timeLeft, lock: i.lockPeriod, totalStaked: i.totalStaked, totalPaid: i.totalPaid, stakers: i.stakersCount, rateX: i.rewardRateX };
+  [d.listed, d.listingPaid] = await Promise.all([sf.isListed(addr), sf.listingPaid(addr)]);
+  d.isCreator = !!(S.account && d.creator.toLowerCase() === S.account.toLowerCase());
+  if (d.timeLeft === 0n) d.status = "ended";
+  else if (d.totalStaked > 0n) d.status = "live";
+  else if (d.timeLeft === d.duration) d.status = "waiting";
+  else d.status = "paused";
+  if (S.account) {
+    const u = await p.userInfo(S.account);
+    d.me = { staked: u.staked, pending: u.pending, unlockAt: Number(u.unlockAt) };
+  }
+  return d;
+}
+
+function poolStatus(d) {
+  if (d.status === "ended") return `<span class="tag end">ENDED</span>`;
+  if (d.status === "live") return `<span class="tag live">LIVE</span>`;
+  if (d.status === "waiting") return `<span class="tag wait">WAITING FOR FIRST STAKER</span>`;
+  return `<span class="tag wait">PAUSED · NO STAKERS</span>`;
+}
+
+function renderPool(d, hl) {
+  const perDay = (d.rateX * BigInt(DAY)) / 10n ** 18n;
+  const distributed = (d.rateX * (d.duration - d.timeLeft)) / 10n ** 18n;
+  const left = d.totalReward > distributed ? d.totalReward - distributed : 0n;
+  let apr = null;
+  if (d.st.addr === d.rt.addr && d.totalStaked > 0n && d.status === "live") {
+    apr = Number((d.rateX * 365n * BigInt(DAY) * 10000n) / (d.totalStaked * 10n ** 18n)) / 100;
+  }
+  const timeTxt = d.status === "ended" ? "Ended"
+    : d.status === "waiting" ? `${dur(d.duration)} (starts with first stake)`
+    : d.status === "paused" ? `${dur(d.timeLeft)} (paused)` : `${dur(d.timeLeft)}`;
+  const fac = (d.stFac || d.rtFac) ? ` <span class="tag fac">✓ FACTORY TOKEN</span>` : "";
+  const same = d.st.addr === d.rt.addr;
+  const id = d.addr.slice(2, 12);
+  let h = `<div class="pool ${hl ? "hl" : ""}" id="p-${id}">
+    <div class="pool-head">
+      <div class="pool-title">Stake ${esc(d.st.symbol)} → earn ${esc(d.rt.symbol)}${fac}</div>
+      <div>${d.listed ? "" : `<span class="tag">UNLISTED</span> `}${poolStatus(d)}</div>
+    </div>
+    <div class="muted">${esc(d.st.name)}${same ? "" : " · rewards in " + esc(d.rt.name)} ·
+      <a href="${CONFIG.EXPLORER}/address/${d.addr}" target="_blank" rel="noopener">pool ${short(d.addr)} ↗</a> ·
+      <a href="#" data-share="${d.addr}">share link</a></div>
+    <div class="stats">
+      ${apr != null ? `<div class="stat"><div class="k">Current APR</div><div class="v">${apr.toLocaleString("en-US", { maximumFractionDigits: 2 })}%</div></div>` : ""}
+      <div class="stat"><div class="k">Rewards per day</div><div class="v">${fmt(perDay, d.rt.decimals, 2)} ${esc(d.rt.symbol)}</div></div>
+      <div class="stat"><div class="k">Rewards left</div><div class="v">${fmt(left, d.rt.decimals, 2)} / ${fmt(d.totalReward, d.rt.decimals, 2)}</div></div>
+      <div class="stat"><div class="k">Time left</div><div class="v">${timeTxt}</div></div>
+      <div class="stat"><div class="k">Total staked</div><div class="v">${fmt(d.totalStaked, d.st.decimals, 2)} ${esc(d.st.symbol)}</div></div>
+      <div class="stat"><div class="k">Stakers</div><div class="v">${d.stakers}</div></div>
+      <div class="stat"><div class="k">Lock per stake</div><div class="v">${d.lock === 0n ? "No lock" : dur(d.lock)}</div></div>
+    </div>`;
+  if (d.isCreator) {
+    h += `<div class="me"><div class="row" style="justify-content:space-between">
+      <div class="muted">You created this pool. ${d.listed ? "It is listed on this page." : "It is not listed on this page; share its link to invite stakers."}</div>
+      ${d.listed ? `<button class="small" data-unlist="${d.addr}">Remove from page</button>`
+        : `<button class="small primary" data-list="${d.addr}">${d.listingPaid ? "List again (free)" : `List on page (+${fmt(S.listFee ?? 0n, 18, 8)} BNB)`}</button>`}
+      </div><div id="lm-${id}"></div></div>`;
+  }
+  if (S.account && d.me) {
+    const now = Math.floor(Date.now() / 1000);
+    const locked = d.lock > 0n && d.me.staked > 0n && d.status !== "ended" && d.me.unlockAt > now;
+    h += `<div class="me">
+      <div class="grid">
+        <div>Your stake</div><div>${fmt(d.me.staked, d.st.decimals, 4)} ${esc(d.st.symbol)}</div>
+        <div>Your pending rewards</div><div>${fmt(d.me.pending, d.rt.decimals, 6)} ${esc(d.rt.symbol)}</div>
+        ${locked ? `<div>Unlocks in</div><div>${dur(d.me.unlockAt - now)}</div>` : ""}
+      </div>
+      ${d.status !== "ended" ? `<div class="row" style="margin-top:10px">
+        <input id="amt-${id}" placeholder="Amount of ${esc(d.st.symbol)} to stake" inputmode="decimal">
+        <button class="small" data-max="${d.addr}">Max</button>
+        <button class="small primary" data-stake="${d.addr}">Stake</button>
+      </div>
+      ${d.lock > 0n ? `<div class="muted" style="margin-top:6px">Each stake locks your whole stake in this pool for ${dur(d.lock)} (or until the reward period ends).</div>` : ""}` : ""}
+      <div class="row" style="margin-top:10px">
+        <button class="small" data-claim="${d.addr}" ${d.me.pending === 0n ? "disabled" : ""}>Claim rewards</button>
+        <button class="small" data-exit="${d.addr}" ${d.me.staked === 0n || locked ? "disabled" : ""}>Withdraw all + claim</button>
+        ${locked ? `<button class="small danger" data-emergency="${d.addr}">Emergency withdraw (no rewards)</button>` : ""}
+      </div>
+      ${locked ? `<div class="muted" style="margin-top:6px">Emergency withdraw returns your full stake now, but you give up your pending rewards. They are shared among the remaining stakers.</div>` : ""}
+      <div id="pm-${id}"></div>
+    </div>`;
+  }
+  return h + `</div>`;
+}
+
+function matches(d) {
+  const hl = new URLSearchParams(location.search).get("pool")?.toLowerCase();
+  if ((S.filter === "all" || S.filter === "active") && !d.listed && d.addr.toLowerCase() !== hl) return false;
+  const q = $("inSearch").value.trim().toLowerCase();
+  if (q && ![d.addr, d.st.addr, d.rt.addr].some((a) => a.toLowerCase().includes(q)) && !d.st.symbol.toLowerCase().includes(q) && !d.rt.symbol.toLowerCase().includes(q)) return false;
+  if ($("chkFactory").checked && !(d.stFac || d.rtFac)) return false;
+  if (S.filter === "active" && d.status === "ended") return false;
+  if (S.filter === "mine" && !(d.me && (d.me.staked > 0n || d.me.pending > 0n))) return false;
+  if (S.filter === "created" && !(S.account && d.creator.toLowerCase() === S.account.toLowerCase())) return false;
+  return true;
+}
+
+function renderPools() {
+  const hl = new URLSearchParams(location.search).get("pool")?.toLowerCase();
+  const list = S.loaded.filter(matches);
+  // A shared pool link is shown first
+  list.sort((a, b) => (b.addr.toLowerCase() === hl) - (a.addr.toLowerCase() === hl));
+  const el = $("pools");
+  if (!S.loaded.some((d) => d.listed) && (S.filter === "all" || S.filter === "active") && !list.length) { el.className = "muted"; el.textContent = configured ? "No listed pools yet. Create the first one below!" : "Available once the factory is deployed."; }
+  else if (!list.length) { el.className = "muted"; el.textContent = (S.filter === "mine" || S.filter === "created") && !S.account ? "Connect your wallet to see your pools." : "No pools match this filter."; }
+  else { el.className = ""; el.innerHTML = list.map((d) => renderPool(d, d.addr.toLowerCase() === hl)).join(""); }
+  $("btnMore").classList.toggle("hidden", !(S.nextIdx > 0));
+}
+
+function have(a) { return S.loaded.some((d) => d.addr.toLowerCase() === a.toLowerCase()); }
+async function addPools(addrs) {
+  const fresh = [...new Set(addrs.map((a) => ethers.getAddress(a)))].filter((a) => !have(a));
+  const data = await Promise.all(fresh.map((a) => poolData(a).catch(() => null)));
+  S.loaded.push(...data.filter(Boolean));
+}
+async function loadPage() {
+  if (!configured) { renderPools(); return; }
+  try {
+    if (S.nextIdx === null) {
+      S.nextIdx = Number(await sf.totalPools());
+      // The connected wallet's own pools (listed or not) for the "Created by me" filter
+      if (S.account) await addPools([...(await sf.poolsByCreator(S.account))].reverse());
+    }
+    // Walk back through all pools, collecting listed ones, until one page is filled
+    let found = 0;
+    while (S.nextIdx > 0 && found < CONFIG.PAGE) {
+      const start = Math.max(0, S.nextIdx - CONFIG.SCAN);
+      const listed = [...(await sf.listedSlice(start, S.nextIdx - start))].reverse();
+      const before = S.loaded.length;
+      await addPools(listed);
+      found += S.loaded.length - before;
+      S.nextIdx = start;
+    }
+    // A shared pool link must appear even if it is older than the loaded page
+    const hl = new URLSearchParams(location.search).get("pool");
+    if (hl && ethers.isAddress(hl) && !S.loaded.some((d) => d.addr.toLowerCase() === hl.toLowerCase()) && await sf.isPool(hl))
+      S.loaded.unshift(await poolData(hl));
+    renderPools();
+  } catch { $("pools").textContent = "Could not load pools."; }
+}
+async function reloadPools() { S.loaded = []; S.nextIdx = null; await loadPage(); }
+async function refreshPool(addr) {
+  const d = await poolData(addr);
+  const i = S.loaded.findIndex((x) => x.addr === d.addr);
+  if (i >= 0) S.loaded[i] = d; else S.loaded.unshift(d);
+  renderPools();
+}
+
+/* ---------- pool actions ---------- */
+async function sendTx(outId, build, label, after) {
+  try {
+    await ensureChain();
+    msg(outId, "Confirm the transaction in your wallet…", "warn");
+    const tx = await build();
+    msg(outId, `Submitted, waiting… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
+    const rc = await tx.wait();
+    if (rc.status !== 1) throw new Error("Transaction failed.");
+    if (after) await after();
+    msg(outId, `✓ ${esc(label)}`, "ok");
+    return true;
+  } catch (e) { msg(outId, esc(errMsg(e)), "err"); return false; }
+}
+
+async function onStake(addr) {
+  const d = S.loaded.find((x) => x.addr === addr); if (!d) return;
+  const id = addr.slice(2, 12), out = `pm-${id}`;
+  const r = parseAmt($(`amt-${id}`).value, d.st.decimals);
+  if (r.err) { msg(out, esc(r.err), "err"); return; }
+  const t = new ethers.Contract(d.st.addr, ERC20_ABI, S.signer);
+  const bal = await t.balanceOf(S.account);
+  if (bal < r.v) { msg(out, `Insufficient balance: you have ${fmt(bal, d.st.decimals)} ${esc(d.st.symbol)}.`, "err"); return; }
+  const lockTxt = d.lock > 0n ? `Your whole stake in this pool will be locked for ${dur(d.lock)} (or until the reward period ends). You can claim rewards any time.` : "No lock: you can withdraw any time.";
+  if (!(await confirmBox({ title: `Stake ${d.st.symbol}?`, rows: [["Amount", `${fmt(r.v, d.st.decimals, 6)} ${d.st.symbol}`], ["Pool", d.addr]],
+    warning: lockTxt, okText: "Stake" }))) return;
+  const allowance = await t.allowance(S.account, addr);
+  if (allowance < r.v) {
+    const ok = await sendTx(out, () => t.approve(addr, r.v), `Approved ${d.st.symbol}. Now confirming the stake…`);
+    if (!ok) return;
+  }
+  const pool = new ethers.Contract(addr, POOL_ABI, S.signer);
+  try { await new ethers.Contract(addr, POOL_ABI, read).stake.staticCall(r.v, { from: S.account }); }
+  catch (e) { msg(out, esc(errMsg(e)), "err"); return; }
+  await sendTx(out, () => pool.stake(r.v), "Staked.", () => refreshPool(addr));
+}
+async function onMax(addr) {
+  const d = S.loaded.find((x) => x.addr === addr); if (!d) return;
+  const bal = await new ethers.Contract(d.st.addr, ERC20_ABI, read).balanceOf(S.account);
+  $(`amt-${addr.slice(2, 12)}`).value = ethers.formatUnits(bal, d.st.decimals);
+}
+async function onClaim(addr) {
+  const pool = new ethers.Contract(addr, POOL_ABI, S.signer);
+  await sendTx(`pm-${addr.slice(2, 12)}`, () => pool.claim(), "Rewards claimed.", () => refreshPool(addr));
+}
+async function onEmergency(addr) {
+  const d = S.loaded.find((x) => x.addr === addr); if (!d) return;
+  const out = `pm-${addr.slice(2, 12)}`;
+  if (!(await confirmBox({ title: "Emergency withdraw?", rows: [["You get back", `${fmt(d.me.staked, d.st.decimals, 6)} ${d.st.symbol}`], ["You give up", `${fmt(d.me.pending, d.rt.decimals, 6)} ${d.rt.symbol} (pending rewards)`]],
+    warning: "<b>Your pending rewards will be lost.</b> They are shared among the remaining stakers. Your full stake is returned immediately.",
+    checkbox: "I understand I will lose my pending rewards.", okText: "Continue", danger: true }))) return;
+  if (!(await confirmBox({ title: "Final confirmation", rows: [["Pool", d.addr]], warning: "Are you really sure? You can also claim your rewards first and then use emergency withdraw.", okText: "Yes, withdraw without rewards", danger: true }))) return;
+  try { await new ethers.Contract(addr, POOL_ABI, read).emergencyWithdraw.staticCall({ from: S.account }); } catch (e) { msg(out, esc(errMsg(e)), "err"); return; }
+  const pool = new ethers.Contract(addr, POOL_ABI, S.signer);
+  await sendTx(out, () => pool.emergencyWithdraw(), "Stake returned (rewards forfeited).", () => refreshPool(addr));
+}
+
+async function onList(addr) {
+  const d = S.loaded.find((x) => x.addr === addr); if (!d) return;
+  const out = `lm-${addr.slice(2, 12)}`;
+  const fee = d.listingPaid ? 0n : await sf.listingFee();
+  if (!(await confirmBox({ title: "List this pool on the page?", rows: [["Pool", `${d.st.symbol} → ${d.rt.symbol}`], ["Fee", fee === 0n ? "Free (already paid)" : fmt(fee, 18, 8) + " BNB"]],
+    warning: "The listing fee is paid once per pool. You can remove the pool from the page and list it again later for free.", okText: "List pool" }))) return;
+  try { await sf.listPool.staticCall(addr, { value: fee, from: S.account }); } catch (e) { msg(out, esc(errMsg(e)), "err"); return; }
+  const w = new ethers.Contract(CONFIG.CONTRACT, SF_ABI, S.signer);
+  await sendTx(out, () => w.listPool(addr, { value: fee }), "Pool listed.", async () => { await refreshBalance(); await refreshPool(addr); });
+}
+async function onUnlist(addr) {
+  const out = `lm-${addr.slice(2, 12)}`;
+  if (!(await confirmBox({ title: "Remove this pool from the page?", rows: [["Pool", addr]],
+    warning: "The pool keeps working normally; it is only hidden from the list. You can list it again later for free.", okText: "Remove" }))) return;
+  const w = new ethers.Contract(CONFIG.CONTRACT, SF_ABI, S.signer);
+  await sendTx(out, () => w.unlistPool(addr), "Removed from the page.", () => refreshPool(addr));
+}
+
+async function onExit(addr) {
+  const d = S.loaded.find((x) => x.addr === addr); if (!d) return;
+  if (!(await confirmBox({ title: "Withdraw everything?", rows: [["Stake", `${fmt(d.me.staked, d.st.decimals, 6)} ${d.st.symbol}`], ["Rewards", `${fmt(d.me.pending, d.rt.decimals, 6)} ${d.rt.symbol}`]],
+    warning: "Your full stake and all pending rewards will be sent to your wallet.", okText: "Withdraw" }))) return;
+  const out = `pm-${addr.slice(2, 12)}`;
+  try { await new ethers.Contract(addr, POOL_ABI, read).exit.staticCall({ from: S.account }); } catch (e) { msg(out, esc(errMsg(e)), "err"); return; }
+  const pool = new ethers.Contract(addr, POOL_ABI, S.signer);
+  await sendTx(out, () => pool.exit(), "Withdrawn and claimed.", () => refreshPool(addr));
+}
+
+$("pools").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-stake],[data-max],[data-claim],[data-exit],[data-emergency],[data-list],[data-unlist],[data-share]");
+  if (!b) return;
+  if (b.dataset.share) {
+    e.preventDefault();
+    const url = location.origin + location.pathname + "?pool=" + b.dataset.share;
+    try { await navigator.clipboard.writeText(url); b.textContent = "link copied ✓"; } catch { prompt("Copy this link:", url); }
+    return;
+  }
+  if (!S.account) { await connect(); return; }
+  if (S.busy) return;
+  S.busy = true; b.disabled = true;
+  try {
+    if (b.dataset.stake) await onStake(b.dataset.stake);
+    else if (b.dataset.max) await onMax(b.dataset.max);
+    else if (b.dataset.claim) await onClaim(b.dataset.claim);
+    else if (b.dataset.exit) await onExit(b.dataset.exit);
+    else if (b.dataset.emergency) await onEmergency(b.dataset.emergency);
+    else if (b.dataset.list) await onList(b.dataset.list);
+    else if (b.dataset.unlist) await onUnlist(b.dataset.unlist);
+  } finally { S.busy = false; if (document.body.contains(b)) b.disabled = false; await refreshBalance(); }
+});
+
+/* ---------- create pool ---------- */
+let ctm = null;
+function scheduleCreate() { clearTimeout(ctm); ctm = setTimeout(updateCreate, 300); }
+
+async function loadTokInfo(inputId, infoId) {
+  const v = $(inputId).value.trim();
+  if (!v) { $(infoId).innerHTML = ""; return null; }
+  if (!ethers.isAddress(v)) { $(infoId).innerHTML = `<span class="err">Invalid address.</span>`; return null; }
+  try {
+    const t = await tok(v);
+    const fac = await isFactoryTok(t.addr);
+    let bal = null;
+    if (S.account) bal = await new ethers.Contract(t.addr, ERC20_ABI, read).balanceOf(S.account);
+    $(infoId).innerHTML = `<span class="ok">✓</span> <b>${esc(t.name)}</b> (${esc(t.symbol)}) · ${t.decimals} decimals${fac ? ` <span class="tag fac">✓ FACTORY TOKEN</span>` : ""}` +
+      (bal != null ? ` · Your balance: <b>${fmt(bal, t.decimals)}</b>` : "");
+    return { ...t, bal };
+  } catch { TOK.delete(v.toLowerCase()); $(infoId).innerHTML = `<span class="err">No token found at this address on BNB Chain.</span>`; return null; }
+}
+
+async function updateCreate() {
+  S.create = null;
+  const same = $("chkSame").checked;
+  $("rewardTokArea").classList.toggle("hidden", same);
+  const st = await loadTokInfo("inStake", "stakeInfo");
+  const rt = same ? st : await loadTokInfo("inReward", "rewardInfo");
+  const errs = {};
+  const days = $("inDays").value.trim(), lock = $("inLock").value.trim();
+  if (!/^\d+$/.test(days) || +days < 1 || +days > 1825) errs.days = "Whole days from 1 to 1825";
+  if (!/^\d+$/.test(lock) || +lock > 365) errs.lock = "Whole days from 0 to 365";
+  let amount = null;
+  if (rt) { const r = parseAmt($("inAmount").value, rt.decimals); if (r.err) errs.amount = $("inAmount").value.trim() ? r.err : ""; else amount = r.v; }
+  $("errDays").textContent = errs.days || ""; $("errLock").textContent = errs.lock || ""; $("errAmount").textContent = errs.amount || "";
+  const sum = $("createSummary");
+  if (!st || !rt || amount == null || errs.days || errs.lock) { sum.className = "muted"; sum.innerHTML = "Fill in the form to see the summary."; updateCreateButtons(); return; }
+  const duration = BigInt(days) * BigInt(DAY), lockP = BigInt(lock) * BigInt(DAY);
+  const c = { st, rt, amount, duration, lock: lockP };
+  const warns = [];
+  if (S.account && rt.bal != null && rt.bal < amount) warns.push(`Insufficient ${esc(rt.symbol)} balance: you have ${fmt(rt.bal, rt.decimals)}.`);
+  if (S.account && S.bnbBalance != null && S.fee != null && S.bnbBalance < totalFee()) warns.push(`Insufficient BNB for the fee.`);
+  if (S.account) {
+    try { c.allowance = await new ethers.Contract(rt.addr, ERC20_ABI, read).allowance(S.account, CONFIG.CONTRACT); } catch { c.allowance = 0n; }
+  }
+  sum.className = "";
+  sum.innerHTML = `<div class="grid">
+    <div>Stake</div><div>${esc(st.symbol)}</div>
+    <div>Rewards</div><div>${fmt(amount, rt.decimals, 6)} ${esc(rt.symbol)}</div>
+    <div>Reward period</div><div>${days} day${days === "1" ? "" : "s"} of active staking</div>
+    <div>Rewards per day</div><div>${fmt(amount / BigInt(days), rt.decimals, 4)} ${esc(rt.symbol)}</div>
+    <div>Lock per stake</div><div>${lock === "0" ? "No lock" : lock + " day" + (lock === "1" ? "" : "s")}</div>
+    <div class="total">Creation fee</div><div class="total">${S.fee != null ? fmt(S.fee, 18, 8) + " BNB" : "—"}</div>
+    <div>Listing on this page</div><div>${$("chkList").checked ? (S.listFee != null ? "+" + fmt(S.listFee, 18, 8) + " BNB" : "—") : "Not listed"}</div>
+    <div class="total">Total fee</div><div class="total">${S.fee != null ? fmt(totalFee(), 18, 8) + " BNB" : "—"}</div>
+  </div>` + (warns.length ? `<div class="box err">${warns.join("<br>")}</div>` : "");
+  c.ok = !warns.length;
+  S.create = c;
+  updateCreateButtons();
+}
+
+function totalFee() { return (S.fee ?? 0n) + ($("chkList").checked ? (S.listFee ?? 0n) : 0n); }
+
+function updateCreateButtons() {
+  const c = S.create;
+  const needApprove = !!(S.account && c && c.allowance != null && c.allowance < c.amount);
+  $("btnApproveReward").classList.toggle("hidden", !needApprove);
+  if (!S.account) { $("btnCreate").textContent = "Connect wallet to create"; $("btnCreate").disabled = !c || !configured; return; }
+  $("btnCreate").textContent = needApprove ? "2) Create pool" : "Create pool";
+  $("btnApproveReward").disabled = !c || !c.ok || S.busy;
+  $("btnCreate").disabled = !c || !c.ok || needApprove || S.busy || !configured || S.fee == null;
+}
+
+async function onApproveReward() {
+  const c = S.create; if (!c) return;
+  S.busy = true; updateCreateButtons();
+  const t = new ethers.Contract(c.rt.addr, ERC20_ABI, S.signer);
+  await sendTx("createMsg", () => t.approve(CONFIG.CONTRACT, c.amount), `Approved. Now press “Create pool”.`);
+  S.busy = false; await updateCreate();
+}
+
+async function onCreate() {
+  if (!S.account) { await connect(); return; }
+  const c = S.create; if (!c) return;
+  const ok = await confirmBox({
+    title: "Create this staking pool?",
+    rows: [["Stake token", `${c.st.symbol} (${short(c.st.addr)})`], ["Reward token", `${c.rt.symbol} (${short(c.rt.addr)})`],
+      ["Total rewards", `${fmt(c.amount, c.rt.decimals, 6)} ${c.rt.symbol}`], ["Reward period", dur(c.duration)],
+      ["Lock per stake", c.lock === 0n ? "No lock" : dur(c.lock)],
+      ["Listed on this page", $("chkList").checked ? "Yes" : "No (share the link yourself)"], ["Total fee", fmt(totalFee(), 18, 8) + " BNB"]],
+    warning: "<b>The rewards can never be withdrawn.</b> Once the pool is created, every reward token goes to stakers. The settings can never be changed.",
+    checkbox: "I understand I cannot take the rewards back.", okText: "Create pool", danger: true });
+  if (!ok) return;
+  S.busy = true; updateCreateButtons();
+  try {
+    const list = $("chkList").checked;
+    const [cf, lf] = await Promise.all([sf.creationFee(), sf.listingFee()]);
+    const fee = cf + (list ? lf : 0n);
+    const args = [c.st.addr, c.rt.addr, c.amount, c.duration, c.lock, list];
+    await sf.createPool.staticCall(...args, { value: fee, from: S.account });
+    const w = new ethers.Contract(CONFIG.CONTRACT, SF_ABI, S.signer);
+    let poolAddr = null;
+    await sendTx("createMsg", () => w.createPool(...args, { value: fee }), "Pool created.", async () => {
+      const mine = await sf.poolsByCreator(S.account);
+      poolAddr = mine[mine.length - 1];
+      $("inAmount").value = ""; // prevent creating the same pool twice by accident
+      await refreshBalance(); await reloadPools();
+    });
+    if (poolAddr) {
+      const url = location.origin + location.pathname + "?pool=" + poolAddr;
+      msg("createMsg", `✓ Pool created${$("chkList").checked ? " and listed on this page" : " (not listed)"}: <span class="mono">${poolAddr}</span><br>Share this link with your community: <a href="${esc(url)}">${esc(url)}</a>`, "ok");
+    }
+  } catch (e) { msg("createMsg", esc(errMsg(e)), "err"); }
+  S.busy = false; await updateCreate();
+}
+
+/* ---------- confirmation dialog ---------- */
+function confirmBox({ title, rows, warning, checkbox, okText = "Yes, I'm sure", danger = false }) {
+  return new Promise((resolve) => {
+    const bg = document.createElement("div");
+    bg.className = "modal-bg";
+    bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
+      <h3>${esc(title)}</h3>
+      <div class="grid">${rows.map(([k, v]) => `<div>${esc(k)}</div><div class="mono">${esc(v)}</div>`).join("")}</div>
+      ${warning ? `<div class="box ${danger ? "err" : "warn"}">${warning}</div>` : ""}
+      ${checkbox ? `<label class="chk"><input type="checkbox" id="mChk"> <span>${esc(checkbox)}</span></label>` : ""}
+      <div class="row" style="justify-content:flex-end;margin-top:16px">
+        <button id="mNo">Cancel</button>
+        <button id="mYes" class="${danger ? "danger" : "primary"}" ${checkbox ? "disabled" : ""}>${esc(okText)}</button>
+      </div></div>`;
+    document.body.appendChild(bg);
+    const done = (v) => { bg.remove(); resolve(v); };
+    bg.querySelector("#mNo").onclick = () => done(false);
+    bg.querySelector("#mYes").onclick = () => done(true);
+    bg.addEventListener("click", (e) => { if (e.target === bg) done(false); });
+    if (checkbox) bg.querySelector("#mChk").onchange = (e) => { bg.querySelector("#mYes").disabled = !e.target.checked; };
+  });
+}
+
+/* ---------- admin ---------- */
+async function refreshAdmin() {
+  if (!configured) return;
+  try { [S.owner, S.fee, S.listFee] = await Promise.all([sf.owner(), sf.creationFee(), sf.listingFee()]); } catch { return; }
+  $("feeInfo").textContent = `Pool creation fee: ${fmt(S.fee, 18, 8)} BNB · optional listing on this page: +${fmt(S.listFee, 18, 8)} BNB (once per pool).`;
+  $("listFeeTxt").textContent = `(+${fmt(S.listFee, 18, 8)} BNB)`;
+  const isOwner = S.account && S.owner.toLowerCase() === S.account.toLowerCase();
+  $("adminCard").classList.toggle("hidden", !isOwner);
+  if (!isOwner) return;
+  const n = await sf.totalPools().catch(() => null);
+  $("adminInfo").innerHTML = `<div>Owner (receives fees)</div><div class="mono">${S.owner}</div>
+    <div>Pool creation fee</div><div>${fmt(S.fee, 18, 8)} BNB</div><div>Listing fee</div><div>${fmt(S.listFee, 18, 8)} BNB</div>
+    <div>Pools created</div><div>${n != null ? n.toString() : "—"}</div>`;
+}
+async function adminTx(fn, args, label) {
+  try { await sf[fn].staticCall(...args, { from: S.account }); } catch (e) { msg("adminMsg", esc(errMsg(e)), "err"); return; }
+  const w = new ethers.Contract(CONFIG.CONTRACT, SF_ABI, S.signer);
+  await sendTx("adminMsg", () => w[fn](...args), label, async () => { await refreshAdmin(); await updateCreate(); });
+}
+async function onLowerFee(kind = "create") {
+  const isList = kind === "list";
+  const cur = isList ? S.listFee : S.fee;
+  const s = $(isList ? "inListFee" : "inFee").value.trim();
+  let v;
+  if (/^0+(\.0*)?$/.test(s)) v = 0n;
+  else if (!/^(\d+\.?\d*|\.\d+)$/.test(s)) { msg("adminMsg", "Enter a valid BNB amount with a dot for decimals (0 = free).", "err"); return; }
+  else { try { v = ethers.parseEther(s); } catch { msg("adminMsg", "Too many decimal places.", "err"); return; } }
+  if (v >= cur) { msg("adminMsg", "The fee can only be lowered. Enter a value below the current fee.", "err"); return; }
+  if (await confirmBox({ title: isList ? "Lower the listing fee?" : "Lower the pool creation fee?", rows: [["Current fee", fmt(cur, 18, 8) + " BNB"], ["New fee", fmt(v, 18, 8) + " BNB"]],
+    warning: "<b>This is permanent.</b> The fee can never be raised back. It applies to all users immediately." }))
+    await adminTx(isList ? "lowerListingFee" : "lowerFee", [v], isList ? "Listing fee lowered." : "Fee lowered.");
+}
+async function onRescue() {
+  const a = $("inRescue").value.trim();
+  if (!ethers.isAddress(a)) { msg("adminMsg", "Invalid token address.", "err"); return; }
+  let bal, sym;
+  try { const c = new ethers.Contract(a, ERC20_ABI, read); [bal, sym] = await Promise.all([c.balanceOf(CONFIG.CONTRACT), c.symbol()]); }
+  catch { msg("adminMsg", "Could not read this token.", "err"); return; }
+  if (bal === 0n) { msg("adminMsg", `The factory holds no ${esc(sym)}. Nothing to rescue.`, "ok"); return; }
+  if (await confirmBox({ title: `Rescue ${sym}?`, rows: [["Amount", fmt(bal) + " " + sym], ["Sent to", S.owner]],
+    warning: "These tokens were sent to the factory by mistake. Remember to return them to their original sender." }))
+    await adminTx("rescueToken", [a, bal], `${sym} rescued to the owner wallet.`);
+}
+async function onTransfer() {
+  let a; try { a = ethers.getAddress($("inOwner").value.trim()); } catch { msg("adminMsg", "Invalid address.", "err"); return; }
+  if (a === ZERO) { msg("adminMsg", "The zero address cannot be used.", "err"); return; }
+  if (a.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { msg("adminMsg", "Ownership cannot be transferred to the contract itself.", "err"); return; }
+  if (!(await confirmBox({ title: "Are you sure you want to transfer ownership?", rows: [["Current owner", S.owner], ["New owner", a]],
+    warning: "<b>This cannot be undone.</b> It is a single step: if you enter a wrong address you permanently lose control of the factory, and all future fees go to the new owner.",
+    checkbox: "I have checked the address character by character and I control this wallet.", okText: "Continue", danger: true }))) return;
+  if (await confirmBox({ title: "Final confirmation", rows: [["New owner", a]], warning: "Are you really sure? After this step your wallet will ask you to sign the transaction.", okText: "Yes, transfer", danger: true }))
+    await adminTx("transferOwnership", [a], "Ownership transferred.");
+}
+
+/* ---------- errors ---------- */
+function errMsg(e) {
+  const code = e?.code ?? e?.info?.error?.code;
+  if (code === "ACTION_REJECTED" || code === 4001) return "You rejected the transaction in your wallet.";
+  const map = {
+    WrongFee: "Not enough BNB sent for the creation fee.", FeeCanOnlyDecrease: "The fee can only be lowered.",
+    ZeroAddress: "Token address is missing.", ZeroAmount: "Amount must be greater than 0.",
+    BadDuration: "Reward period must be between 1 and 1825 days.", BadLock: "Lock must be at most 365 days.",
+    RewardTooSmall: "Reward amount is too small for this period.", TransferFailed: "A transfer failed.",
+    OwnableUnauthorizedAccount: "Only the owner can do this.", OwnableInvalidOwner: "Invalid new owner address.",
+    SafeERC20FailedOperation: "Token transfer failed. Check your balance and approval.",
+    NoRewardReceived: "No reward tokens arrived in the pool.",
+    PoolEnded: "This pool's reward period has ended. No new stakes.",
+    Locked: "Your stake is still locked.", InsufficientBalance: "You don't have that much staked.",
+    NotInitialized: "Pool is not initialized.", ReentrancyGuardReentrantCall: "Blocked: re-entrant call.",
+    NotPool: "Not a pool from this factory.", NotPoolCreator: "Only the pool creator can do this.",
+    AlreadyListed: "This pool is already listed.", NotListed: "This pool is not listed."
+  };
+  let name = e?.revert?.name, args = e?.revert?.args;
+  if (!name) {
+    const cands = [e?.data, e?.info?.error?.data, e?.error?.data, e?.data?.data, e?.info?.error?.data?.data];
+    const m = String(e?.message || "").match(/0x[0-9a-fA-F]{8,}/); if (m) cands.push(m[0]);
+    outer: for (const d of cands) {
+      if (typeof d !== "string" || !d.startsWith("0x")) continue;
+      for (const I of IFACES) { try { const pe = I.parseError(d); if (pe) { name = pe.name; args = pe.args; break outer; } } catch {} }
+    }
+  }
+  if (name === "Locked" && args?.[0]) return `Your stake is locked for another ${dur(Number(args[0]) - Math.floor(Date.now() / 1000))}.`;
+  if (name && map[name]) return map[name];
+  if (code === "INSUFFICIENT_FUNDS" || /insufficient funds/i.test(e?.message || "")) return "Not enough BNB in your wallet (fee + gas).";
+  return e?.shortMessage || e?.reason || e?.message || String(e);
+}
+function msg(id, html, cls) { const el = $(id); if (el) el.innerHTML = `<div class="box ${cls}">${html}</div>`; }
+
+/* ---------- UI events ---------- */
+$("segFilter").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+  $("segFilter").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  S.filter = b.dataset.v; renderPools();
+}));
+$("inSearch").addEventListener("input", renderPools);
+$("chkFactory").addEventListener("change", renderPools);
+$("btnMore").addEventListener("click", loadPage);
+for (const id of ["inStake", "inReward", "inAmount", "inDays", "inLock"]) $(id).addEventListener("input", scheduleCreate);
+$("chkSame").addEventListener("change", scheduleCreate);
+$("chkList").addEventListener("change", scheduleCreate);
+$("btnConnect").addEventListener("click", connect);
+$("btnApproveReward").addEventListener("click", onApproveReward);
+$("btnCreate").addEventListener("click", onCreate);
+$("btnLowerFee").addEventListener("click", () => onLowerFee("create"));
+$("btnLowerListFee").addEventListener("click", () => onLowerFee("list"));
+$("btnRescue").addEventListener("click", onRescue);
+$("btnTransfer").addEventListener("click", onTransfer);
+
+/* ---------- init ---------- */
+(async function init() {
+  $("contractLink").textContent = configured ? CONFIG.CONTRACT : "not set yet";
+  if (configured) $("contractLink").href = `${CONFIG.EXPLORER}/address/${CONFIG.CONTRACT}#code`;
+  else $("cfgWarn").classList.remove("hidden");
+  const here = location.host + location.pathname + location.search;
+  $("mmLink").href = "https://metamask.app.link/dapp/" + here;
+  $("twLink").href = "https://link.trustwallet.com/open_url?coin_id=20000714&url=" + encodeURIComponent(location.href);
+  const q = new URLSearchParams(location.search);
+  if (q.get("token") && ethers.isAddress(q.get("token"))) { $("inStake").value = q.get("token"); }
+  try { if (!configured) throw 0; await refreshAdmin(); } catch { $("feeInfo").textContent = "shown once the contract is reachable."; }
+  updateCreateButtons();
+  await loadPage();
+  if ($("inStake").value) updateCreate();
+})();
+</script>
+</body>
+</html>

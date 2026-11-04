@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -84,164 +84,164 @@
 <div class="wrap">
   <header>
     <h1>BNB <span>MultiSender</span></h1>
-    <button id="btnConnect" class="primary">Cüzdanı Bağla</button>
+    <button id="btnConnect" class="primary">Connect Wallet</button>
   </header>
-  <p class="sub">Tek işlemde yüzlerce adrese BNB veya token gönderin. Ücret düşük ve sınırlı: <span id="feeInfo">yükleniyor…</span></p>
+  <p class="sub">Send BNB or tokens to hundreds of addresses in a single transaction. Low, capped fee: <span id="feeInfo">loading…</span></p>
 
-  <div id="cfgWarn" class="box err hidden">Kontrat adresi henüz girilmedi. Dosyanın içindeki <code>CONFIG.CONTRACT</code> satırını güncelleyin.</div>
+  <div id="cfgWarn" class="box err hidden">Contract address is not set yet. Update the <code>CONFIG.CONTRACT</code> line in this file.</div>
 
-  <!-- Cüzdan durumu -->
+  <!-- Wallet status -->
   <div id="walletBox" class="card hidden">
     <div class="row" style="justify-content:space-between">
-      <div><div class="muted">Bağlı cüzdan</div><div id="acct" class="mono"></div></div>
-      <div style="text-align:right"><div class="muted">BNB bakiyesi</div><div id="bnbBal" style="font-weight:600"></div></div>
+      <div><div class="muted">Connected wallet</div><div id="acct" class="mono"></div></div>
+      <div style="text-align:right"><div class="muted">BNB balance</div><div id="bnbBal" style="font-weight:600"></div></div>
     </div>
   </div>
 
   <div id="noWallet" class="card hidden">
-    <b>Cüzdan bulunamadı.</b>
-    <p class="muted">Bilgisayarda MetaMask eklentisini kurun. Telefondaysanız sayfayı cüzdan uygulamasının içinden açın:</p>
+    <b>No wallet found.</b>
+    <p class="muted">On desktop, install the MetaMask extension. On mobile, open this page inside your wallet app:</p>
     <div class="row">
-      <a id="mmLink"><button>MetaMask'ta aç</button></a>
-      <a id="twLink"><button>Trust Wallet'ta aç</button></a>
+      <a id="mmLink"><button>Open in MetaMask</button></a>
+      <a id="twLink"><button>Open in Trust Wallet</button></a>
     </div>
   </div>
 
-  <!-- 1: Ne gönderilecek -->
+  <!-- 1: What to send -->
   <div class="card">
-    <div class="step"><span class="num">1</span>Ne göndereceksiniz?</div>
+    <div class="step"><span class="num">1</span>What do you want to send?</div>
     <div class="seg" id="segAsset">
       <button data-v="bnb" class="on">BNB</button>
       <button data-v="token">Token (BEP-20)</button>
     </div>
     <div id="tokenArea" class="hidden">
-      <label for="tokenAddr">Token kontrat adresi</label>
-      <input id="tokenAddr" placeholder="0x… (BscScan'de token sayfasındaki adres)" autocomplete="off" spellcheck="false">
+      <label for="tokenAddr">Token contract address</label>
+      <input id="tokenAddr" placeholder="0x… (the address on the token's BscScan page)" autocomplete="off" spellcheck="false">
       <div id="tokenInfo" class="muted" style="margin-top:8px"></div>
     </div>
   </div>
 
-  <!-- 2: Alıcılar -->
+  <!-- 2: Recipients -->
   <div class="card">
-    <div class="step"><span class="num">2</span>Alıcıları girin</div>
+    <div class="step"><span class="num">2</span>Enter recipients</div>
     <div class="seg" id="segAmount">
-      <button data-v="diff" class="on">Her alıcıya farklı miktar</button>
-      <button data-v="equal">Herkese aynı miktar</button>
+      <button data-v="diff" class="on">Different amount each</button>
+      <button data-v="equal">Same amount for all</button>
     </div>
 
     <div id="equalArea" class="hidden">
-      <label for="equalAmount">Her alıcıya gönderilecek miktar</label>
-      <input id="equalAmount" placeholder="ör. 10 veya 0.5" inputmode="decimal" autocomplete="off">
+      <label for="equalAmount">Amount per recipient</label>
+      <input id="equalAmount" placeholder="e.g. 10 or 0.5" inputmode="decimal" autocomplete="off">
     </div>
 
-    <label for="list" id="listLabel">Her satıra bir alıcı: adres, miktar</label>
+    <label for="list" id="listLabel">One recipient per line: address, amount</label>
     <textarea id="list" spellcheck="false" placeholder="0x1111111111111111111111111111111111111111, 1.5
 0x2222222222222222222222222222222222222222, 20
-0x3333333333333333333333333333333333333333; 0,25"></textarea>
+0x3333333333333333333333333333333333333333; 0.25"></textarea>
 
     <div class="row" style="margin-top:10px">
-      <button id="btnFile">CSV / TXT yükle</button>
+      <button id="btnFile">Upload CSV / TXT</button>
       <input type="file" id="file" accept=".csv,.txt,text/csv,text/plain" class="hidden">
-      <button id="btnTemplate">Örnek CSV indir</button>
-      <button id="btnClean" class="hidden">Hatalı satırları temizle</button>
+      <button id="btnTemplate">Download sample CSV</button>
+      <button id="btnClean" class="hidden">Remove invalid lines</button>
     </div>
 
     <div class="help" id="helpDiff">
-      <b>Nasıl girilir?</b><br>
-      • Her satıra önce adres, sonra miktar yazın. Arasına virgül, noktalı virgül, boşluk veya tab koyabilirsiniz.<br>
-      • Ondalık için nokta ya da virgül kullanabilirsiniz: <code>0.5</code> veya <code>0,5</code>. Binlik ayırıcı kullanmayın: <code>1000</code> yazın, <code>1.000</code> değil.<br>
-      • Excel'de A sütununa adresleri, B sütununa miktarları yazıp <i>Farklı Kaydet → CSV</i> ile kaydedin, sonra “CSV / TXT yükle” ile seçin. Başlık satırı varsa otomatik atlanır.<br>
-      • Miktarlar token birimidir (ör. 10 USDT için <code>10</code> yazın).
+      <b>How to enter</b><br>
+      • Write the address first, then the amount, one recipient per line. Separate them with a comma, semicolon, space or tab.<br>
+      • Use a dot for decimals: <code>0.5</code>. Do not use thousand separators: write <code>1000</code>, not <code>1,000</code>.<br>
+      • In Excel, put addresses in column A and amounts in column B, use <i>Save As → CSV</i>, then choose the file with “Upload CSV / TXT”. A header row is skipped automatically.<br>
+      • Amounts are in token units (e.g. write <code>10</code> to send 10 USDT).
     </div>
     <div class="help hidden" id="helpEqual">
-      <b>Nasıl girilir?</b><br>
-      • Yukarıya tek miktarı yazın, aşağıya her satıra bir adres yapıştırın.<br>
-      • Satırda adresten sonra bir şey varsa yok sayılır.<br>
-      • Excel'den bir sütunu kopyalayıp doğrudan buraya yapıştırabilirsiniz.
+      <b>How to enter</b><br>
+      • Enter one amount above, then paste one address per line below.<br>
+      • Anything after the address on a line is ignored.<br>
+      • You can copy a column from Excel and paste it here directly.
     </div>
 
     <div id="checkOut"></div>
   </div>
 
-  <!-- 3: Özet ve gönderim -->
+  <!-- 3: Summary and send -->
   <div class="card">
-    <div class="step"><span class="num">3</span>Kontrol edin ve gönderin</div>
-    <div id="summary" class="muted">Alıcı listesi girildiğinde özet burada görünür.</div>
+    <div class="step"><span class="num">3</span>Review and send</div>
+    <div id="summary" class="muted">The summary appears here once you enter recipients.</div>
     <div id="sendMsg"></div>
     <div class="row" style="margin-top:14px">
-      <button id="btnApprove" class="primary hidden">1) Token harcama onayı ver</button>
-      <button id="btnSend" class="primary" disabled>Gönder</button>
+      <button id="btnApprove" class="primary hidden">1) Approve token spending</button>
+      <button id="btnSend" class="primary" disabled>Send</button>
     </div>
     <div id="approveNote" class="muted hidden" style="margin-top:8px">
-      Token gönderimi iki adımlıdır: önce kontratın tokenlarınızdan <b>sadece bu gönderim kadar</b> harcamasına izin verirsiniz, sonra gönderirsiniz. Sınırsız izin istenmez.
+      Token sending takes two steps: first you allow the contract to spend <b>only the amount of this send</b>, then you send. No unlimited approval is requested.
     </div>
   </div>
 
-  <!-- 4: Sonuç -->
+  <!-- 4: Result -->
   <div class="card hidden" id="resultCard">
-    <div class="step"><span class="num">4</span>Gönderim durumu</div>
+    <div class="step"><span class="num">4</span>Send status</div>
     <div id="batches"></div>
-    <p class="muted" style="margin-bottom:0">Her parti ayrı bir işlemdir. Bir parti başarısız olursa o partideki hiçbir alıcıya gönderim yapılmaz. Kalan partiler için tekrar “Gönder”e basmanız yeterli, tamamlananlar tekrar gönderilmez.</p>
+    <p class="muted" style="margin-bottom:0">Each batch is a separate transaction. If a batch fails, nobody in that batch receives anything. Press “Send” again to continue with the remaining batches; completed batches are not sent twice.</p>
   </div>
 
-  <!-- Ekosistem linkleri -->
+  <!-- Ecosystem links -->
   <div class="card">
-    <div class="step">CD1 ekosistemi</div>
+    <div class="step">CD1 ecosystem</div>
     <div class="eco">
       <a href="https://bnbp2p.vercel.app" target="_blank" rel="noopener">
-        <b>CD1 Exchange</b><br><span class="muted">Yeni tokenını P2P al-sat için kullan.</span>
+        <b>CD1 Exchange</b><br><span class="muted">Trade your new token peer-to-peer.</span>
       </a>
       <a href="https://cd1satominer.vercel.app/" target="_blank" rel="noopener">
-        <b>CD1 Sat Miner</b><br><span class="muted">Bitcoin madenciliği temalı staking oyunu.</span>
+        <b>CD1 Sat Miner</b><br><span class="muted">Bitcoin-mining themed staking game.</span>
       </a>
     </div>
   </div>
 
-  <!-- Yönetim paneli: sadece kontrat sahibinin cüzdanında görünür -->
+  <!-- Admin panel: visible only to the contract owner wallet -->
   <div class="card admin hidden" id="adminCard">
-    <div class="step">Yönetim paneli <span class="muted" style="font-weight:400">(sadece sahip görür)</span></div>
+    <div class="step">Admin panel <span class="muted" style="font-weight:400">(visible to owner only)</span></div>
     <div class="grid" id="adminInfo"></div>
 
-    <h3>Ücretler</h3>
-    <div class="muted">Tavanın üstüne çıkılamaz (alıcı başı en fazla <span id="maxPer"></span> BNB, işlem başı en fazla <span id="maxCap"></span> BNB).</div>
+    <h3>Fees</h3>
+    <div class="muted">Fees cannot exceed the hard-coded ceiling (max <span id="maxPer"></span> BNB per recipient, max <span id="maxCap"></span> BNB per transaction).</div>
     <div class="row" style="margin-top:8px">
-      <input id="inPer" placeholder="Alıcı başı (BNB)" inputmode="decimal">
-      <input id="inCap" placeholder="İşlem başı tavan (BNB)" inputmode="decimal">
-      <button id="btnSetFees">Ücreti güncelle</button>
+      <input id="inPer" placeholder="Per recipient (BNB)" inputmode="decimal">
+      <input id="inCap" placeholder="Cap per transaction (BNB)" inputmode="decimal">
+      <button id="btnSetFees">Update fees</button>
     </div>
 
-    <h3>Ücretin gittiği cüzdan</h3>
+    <h3>Fee receiver wallet</h3>
     <div class="row">
       <input id="inReceiver" placeholder="0x…" spellcheck="false">
-      <button id="btnSetReceiver">Değiştir</button>
+      <button id="btnSetReceiver">Change</button>
     </div>
 
-    <h3>Sahipliği devret</h3>
-    <div class="muted">Tek adımlıdır: yanlış adres yazılırsa kontrat kontrolü geri gelmez.</div>
+    <h3>Transfer ownership</h3>
+    <div class="muted">Single step: if you enter a wrong address, control of the contract cannot be recovered.</div>
     <div class="row" style="margin-top:8px">
-      <input id="inOwner" placeholder="Yeni sahip 0x…" spellcheck="false">
-      <button id="btnTransfer" class="danger">Devret</button>
+      <input id="inOwner" placeholder="New owner 0x…" spellcheck="false">
+      <button id="btnTransfer" class="danger">Transfer</button>
     </div>
     <div id="adminMsg"></div>
   </div>
 
   <footer>
-    Kontrat: <a id="contractLink" target="_blank" rel="noopener"></a><br>
-    Ücretin tavanı kontrata sabit yazılıdır, yükseltilemez. Kontrat para tutmaz; gönderilenden kesinti yapılmaz.
+    Contract: <a id="contractLink" target="_blank" rel="noopener"></a><br>
+    The fee ceiling is hard-coded in the contract and can never be raised. The contract holds no funds and never deducts from what you send.
   </footer>
 </div>
 
 <script>
-/* ================== AYARLAR ================== */
+/* ================== SETTINGS ================== */
 const CONFIG = {
-  CONTRACT: "0x202c0103aBD508CAE1D945B6124e0631a5eDAB41", // BSC ana ağ, doğrulanmış
+  CONTRACT: "0x202c0103aBD508CAE1D945B6124e0631a5eDAB41", // BSC mainnet, verified
   CHAIN_ID: 56,
   CHAIN_HEX: "0x38",
   RPC: "https://bsc-dataseed.bnbchain.org",
   EXPLORER: "https://bscscan.com",
-  BATCH: 400,               // kontrattaki MAX_RECIPIENTS ile aynı
-  TX_GAS_SAFE: 15000000,    // BSC işlem başı gaz sınırı 16.777.216; güvenli pay bırakılır
-  GAS_PER_BNB: 37000,       // tahmini gaz (alıcı başına), sadece özet için
+  BATCH: 400,               // same as MAX_RECIPIENTS in the contract
+  TX_GAS_SAFE: 15000000,    // BSC per-transaction gas limit is 16,777,216; keep a safety margin
+  GAS_PER_BNB: 37000,       // estimated gas per recipient, for the summary only
   GAS_PER_TOKEN: 29000,
   GAS_BASE: 60000
 };
@@ -284,7 +284,7 @@ const S = {
   provider: null, signer: null, account: null, bnbBalance: null,
   asset: "bnb", amountMode: "diff",
   token: null,          // {address, name, symbol, decimals, balance, contract}
-  plan: null,           // hesaplanan gönderim planı
+  plan: null,           // computed send plan
   busy: false
 };
 
@@ -292,25 +292,26 @@ function fmt(v, dec = 18, max = 6) {
   const s = ethers.formatUnits(v, dec);
   const [i, f = ""] = s.split(".");
   const ff = f.slice(0, max).replace(/0+$/, "");
-  return Number(i).toLocaleString("tr-TR") + (ff ? "," + ff : "");
+  return Number(i).toLocaleString("en-US") + (ff ? "." + ff : "");
 }
 const sym = () => (S.asset === "bnb" ? "BNB" : (S.token?.symbol || "token"));
 const decs = () => (S.asset === "bnb" ? 18 : S.token?.decimals);
 
-/* ---------- miktar ayrıştırma ---------- */
+/* ---------- amount parsing ---------- */
 function parseAmount(str, dec) {
   let a = String(str).trim().replace(/[\s,;]+$/, "");
-  if (!a) return { err: "Miktar yazılmamış" };
-  a = a.replace(",", ".");
-  if (!/^(\d+\.?\d*|\.\d+)$/.test(a)) return { err: "Geçersiz miktar (binlik ayırıcı kullanmayın)" };
+  if (!a) return { err: "Amount is missing" };
+  // A comma could be a thousand separator ("1,000") or a decimal mark ("0,5"); refuse it instead of guessing.
+  if (a.includes(",")) return { err: "Do not use commas in amounts. Use a dot for decimals (0.5) and no thousand separators (1000)" };
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(a)) return { err: "Invalid amount" };
   try {
     const v = ethers.parseUnits(a, dec);
-    if (v === 0n) return { err: "Miktar 0 olamaz" };
+    if (v === 0n) return { err: "Amount cannot be 0" };
     return { v };
-  } catch { return { err: `Çok fazla ondalık basamak (en fazla ${dec})` }; }
+  } catch { return { err: `Too many decimal places (max ${dec})` }; }
 }
 
-/* ---------- liste ayrıştırma ---------- */
+/* ---------- list parsing ---------- */
 function parseList(text, equal, dec) {
   const rows = [], errors = [], seen = new Map();
   text.split(/\r?\n/).forEach((raw, idx) => {
@@ -318,16 +319,16 @@ function parseList(text, equal, dec) {
     const line = raw.replace(/["'​﻿]/g, "").trim();
     if (!line) return;
     if (!/^0x/i.test(line)) {
-      if (rows.length === 0 && errors.length === 0) return; // başlık satırı
-      errors.push({ ln, raw, msg: "Satır 0x ile başlayan bir adresle başlamalı" }); return;
+      if (rows.length === 0 && errors.length === 0) return; // header row
+      errors.push({ ln, raw, msg: "Line must start with an address beginning with 0x" }); return;
     }
     const addrStr = line.slice(0, 42);
-    if (line.length > 42 && /[0-9a-z]/i.test(line[42])) { errors.push({ ln, raw, msg: "Adres çok uzun" }); return; }
+    if (line.length > 42 && /[0-9a-z]/i.test(line[42])) { errors.push({ ln, raw, msg: "Address is too long" }); return; }
     let addr;
-    try { addr = ethers.getAddress(addrStr); } catch { errors.push({ ln, raw, msg: "Geçersiz adres (eksik/hatalı karakter)" }); return; }
-    if (addr === ZERO) { errors.push({ ln, raw, msg: "Sıfır adres kullanılamaz" }); return; }
-    if (configured && addr.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { errors.push({ ln, raw, msg: "MultiSender kontratına gönderim yapılamaz" }); return; }
-    if (seen.has(addr)) { errors.push({ ln, raw, msg: `Tekrar eden adres (${seen.get(addr)}. satırla aynı)` }); return; }
+    try { addr = ethers.getAddress(addrStr); } catch { errors.push({ ln, raw, msg: "Invalid address (missing or wrong characters)" }); return; }
+    if (addr === ZERO) { errors.push({ ln, raw, msg: "The zero address cannot be used" }); return; }
+    if (configured && addr.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { errors.push({ ln, raw, msg: "Cannot send to the MultiSender contract itself" }); return; }
+    if (seen.has(addr)) { errors.push({ ln, raw, msg: `Duplicate address (same as line ${seen.get(addr)})` }); return; }
     let amount = null;
     if (!equal) {
       const r = parseAmount(line.slice(42).replace(/^[\s,;]+/, ""), dec);
@@ -340,7 +341,7 @@ function parseList(text, equal, dec) {
   return { rows, errors };
 }
 
-/* ---------- analiz ve özet ---------- */
+/* ---------- analysis and summary ---------- */
 let analyzeTimer = null;
 function scheduleAnalyze() { clearTimeout(analyzeTimer); analyzeTimer = setTimeout(analyze, 250); }
 
@@ -354,25 +355,25 @@ async function analyze() {
   const equal = S.amountMode === "equal";
   updateButtons();
 
-  if (!text.trim()) { out.innerHTML = ""; $("btnClean").classList.add("hidden"); sum.innerHTML = "Alıcı listesi girildiğinde özet burada görünür."; sum.className = "muted"; return; }
-  if (S.asset === "token" && !S.token) { out.innerHTML = `<div class="box warn">Önce geçerli bir token adresi girin.</div>`; sum.innerHTML = ""; return; }
+  if (!text.trim()) { out.innerHTML = ""; $("btnClean").classList.add("hidden"); sum.innerHTML = "The summary appears here once you enter recipients."; sum.className = "muted"; return; }
+  if (S.asset === "token" && !S.token) { out.innerHTML = `<div class="box warn">Enter a valid token address first.</div>`; sum.innerHTML = ""; return; }
 
   const dec = decs();
   const { rows, errors } = parseList(text, equal, dec);
   let amountEach = null, amountErr = null;
   if (equal) {
     const r = parseAmount($("equalAmount").value, dec);
-    if (r.err) amountErr = $("equalAmount").value.trim() ? r.err : "Herkese gönderilecek miktarı yazın";
+    if (r.err) amountErr = $("equalAmount").value.trim() ? r.err : "Enter the amount to send to each recipient";
     else amountEach = r.v;
   }
 
-  // kontrol kutusu
+  // validation box
   let html = "";
-  if (rows.length) html += `<div class="box ok">✓ ${rows.length} geçerli alıcı</div>`;
+  if (rows.length) html += `<div class="box ok">✓ ${rows.length} valid recipient${rows.length === 1 ? "" : "s"}</div>`;
   if (errors.length) {
-    html += `<div class="box err"><b>${errors.length} satırda sorun var</b> — düzeltin ya da “Hatalı satırları temizle”ye basın:<ul class="errs">` +
-      errors.slice(0, 100).map((e) => `<li>${e.ln}. satır: ${esc(e.msg)} <span class="mono muted">${esc(e.raw.slice(0, 60))}</span></li>`).join("") +
-      (errors.length > 100 ? `<li>… ve ${errors.length - 100} satır daha</li>` : "") + `</ul></div>`;
+    html += `<div class="box err"><b>${errors.length} line${errors.length === 1 ? " has a problem" : "s have problems"}</b> — fix ${errors.length === 1 ? "it" : "them"} or press “Remove invalid lines”:<ul class="errs">` +
+      errors.slice(0, 100).map((e) => `<li>Line ${e.ln}: ${esc(e.msg)} <span class="mono muted">${esc(e.raw.slice(0, 60))}</span></li>`).join("") +
+      (errors.length > 100 ? `<li>… and ${errors.length - 100} more lines</li>` : "") + `</ul></div>`;
   }
   if (amountErr) html += `<div class="box warn">${esc(amountErr)}</div>`;
   out.innerHTML = html;
@@ -380,22 +381,22 @@ async function analyze() {
 
   if (!rows.length || errors.length || amountErr) {
     sum.className = "muted";
-    sum.innerHTML = errors.length ? "Gönderim için önce hatalı satırları düzeltin." : (rows.length ? "" : "Geçerli alıcı yok.");
+    sum.innerHTML = errors.length ? "Fix the invalid lines before sending." : (rows.length ? "" : "No valid recipients.");
     return;
   }
 
-  // partiler
+  // batches
   const batches = [];
   for (let i = 0; i < rows.length; i += CONFIG.BATCH) batches.push({ rows: rows.slice(i, i + CONFIG.BATCH), done: false, hash: null, status: "" });
   const total = equal ? amountEach * BigInt(rows.length) : rows.reduce((a, r) => a + r.amount, 0n);
 
   sum.className = "";
-  sum.innerHTML = `<span class="muted">Hesaplanıyor…</span>`;
+  sum.innerHTML = `<span class="muted">Calculating…</span>`;
   let fees = 0n, gasPrice = null;
   try {
     if (!configured) throw new Error("cfg");
     for (const b of batches) { b.fee = await msRead.feeFor(b.rows.length); fees += b.fee; }
-  } catch { sum.innerHTML = `<div class="box err">Ücret kontrattan okunamadı. Kontrat adresi ve ağ doğru mu?</div>`; return; }
+  } catch { sum.innerHTML = `<div class="box err">Could not read the fee from the contract. Is the contract address and network correct?</div>`; return; }
   try { gasPrice = (await read.getFeeData()).gasPrice; } catch {}
   const perR = S.asset === "bnb" ? CONFIG.GAS_PER_BNB : CONFIG.GAS_PER_TOKEN;
   const gasUnits = BigInt(rows.length * perR + batches.length * CONFIG.GAS_BASE);
@@ -411,21 +412,21 @@ function renderSummary() {
   const isBNB = p.asset === "bnb";
   const needBNB = (isBNB ? p.total : 0n) + p.fees + (p.gasCost || 0n);
   let h = `<div class="grid">
-    <div>Alıcı sayısı</div><div>${p.rows.length.toLocaleString("tr-TR")}</div>
-    <div>İşlem (parti) sayısı</div><div>${p.batches.length}${p.batches.length > 1 ? ` <span class="muted">(en fazla ${CONFIG.BATCH} alıcı/işlem)</span>` : ""}</div>
-    ${p.equal ? `<div>Kişi başı</div><div>${fmt(p.amountEach, dec)} ${esc(s)}</div>` : ""}
-    <div>Toplam gönderim</div><div>${fmt(p.total, dec)} ${esc(s)}</div>
-    <div>Hizmet ücreti</div><div>${fmt(p.fees, 18, 8)} BNB</div>
-    <div>Tahmini ağ ücreti (gaz)</div><div>${p.gasCost != null ? "~" + fmt(p.gasCost, 18, 6) + " BNB" : "—"}</div>
-    <div class="total">Cüzdanda gereken BNB</div><div class="total">~${fmt(needBNB, 18, 6)} BNB</div>
-    ${!isBNB ? `<div>Cüzdanda gereken token</div><div>${fmt(p.total, dec)} ${esc(s)}</div>` : ""}
+    <div>Recipients</div><div>${p.rows.length.toLocaleString("en-US")}</div>
+    <div>Transactions (batches)</div><div>${p.batches.length}${p.batches.length > 1 ? ` <span class="muted">(max ${CONFIG.BATCH} recipients per transaction)</span>` : ""}</div>
+    ${p.equal ? `<div>Per recipient</div><div>${fmt(p.amountEach, dec)} ${esc(s)}</div>` : ""}
+    <div>Total to send</div><div>${fmt(p.total, dec)} ${esc(s)}</div>
+    <div>Service fee</div><div>${fmt(p.fees, 18, 8)} BNB</div>
+    <div>Estimated network fee (gas)</div><div>${p.gasCost != null ? "~" + fmt(p.gasCost, 18, 6) + " BNB" : "—"}</div>
+    <div class="total">BNB needed in wallet</div><div class="total">~${fmt(needBNB, 18, 6)} BNB</div>
+    ${!isBNB ? `<div>Tokens needed in wallet</div><div>${fmt(p.total, dec)} ${esc(s)}</div>` : ""}
   </div>`;
-  if (!isBNB) h += `<div class="help">Vergili (tax) tokenlarda alıcıya token'ın kendi vergisi düşülmüş miktar ulaşır. MultiSender hiçbir kesinti yapmaz.</div>`;
+  if (!isBNB) h += `<div class="help">For tokens with a transfer tax, recipients receive the amount minus the token's own tax. MultiSender itself deducts nothing.</div>`;
 
-  // bakiye kontrolü
+  // balance check
   const warns = [];
-  if (S.account && S.bnbBalance != null && S.bnbBalance < needBNB) warns.push(`BNB bakiyeniz yetersiz: ${fmt(S.bnbBalance)} BNB var, ~${fmt(needBNB)} BNB gerekiyor.`);
-  if (S.account && !isBNB && S.token?.balance != null && S.token.balance < p.total) warns.push(`${esc(s)} bakiyeniz yetersiz: ${fmt(S.token.balance, dec)} var, ${fmt(p.total, dec)} gerekiyor.`);
+  if (S.account && S.bnbBalance != null && S.bnbBalance < needBNB) warns.push(`Insufficient BNB balance: you have ${fmt(S.bnbBalance)} BNB, ~${fmt(needBNB)} BNB is needed.`);
+  if (S.account && !isBNB && S.token?.balance != null && S.token.balance < p.total) warns.push(`Insufficient ${esc(s)} balance: you have ${fmt(S.token.balance, dec)}, ${fmt(p.total, dec)} is needed.`);
   if (warns.length) h += `<div class="box err">${warns.join("<br>")}</div>`;
   p.balanceOk = warns.length === 0;
 
@@ -433,27 +434,28 @@ function renderSummary() {
   updateButtons();
 }
 
-/* ---------- butonlar ---------- */
+/* ---------- buttons ---------- */
 function updateButtons() {
   const p = S.plan, isToken = S.asset === "token";
   $("btnApprove").classList.toggle("hidden", !isToken);
   $("approveNote").classList.toggle("hidden", !isToken);
   const ready = !!p && configured && !S.busy;
   if (!S.account) {
-    $("btnSend").textContent = "Göndermek için cüzdanı bağlayın";
+    $("btnSend").textContent = "Connect wallet to send";
     $("btnSend").disabled = !ready;
     $("btnApprove").disabled = true;
     return;
   }
   const remaining = p ? p.batches.filter((b) => !b.done).length : 0;
   const started = p && p.batches.some((b) => b.done);
-  $("btnSend").textContent = (started && remaining === 0) ? "Gönderildi ✓"
-    : isToken ? (started ? `2) Kalan ${remaining} partiyi gönder` : "2) Gönder") : (started ? `Kalan ${remaining} partiyi gönder` : "Gönder");
+  const restLabel = `Send remaining ${remaining} batch${remaining === 1 ? "" : "es"}`;
+  $("btnSend").textContent = (started && remaining === 0) ? "Sent ✓"
+    : isToken ? (started ? `2) ${restLabel}` : "2) Send") : (started ? restLabel : "Send");
   const needApprove = isToken && p && p.allowanceOk === false;
   $("btnApprove").disabled = !ready || !needApprove || !p.balanceOk;
   $("btnSend").disabled = !ready || remaining === 0 || !p.balanceOk || (isToken && p.allowanceOk !== true);
-  if (isToken && p && p.allowanceOk === true) $("btnApprove").textContent = "1) Onay verildi ✓";
-  else $("btnApprove").textContent = "1) Token harcama onayı ver";
+  if (isToken && p && p.allowanceOk === true) $("btnApprove").textContent = "1) Approved ✓";
+  else $("btnApprove").textContent = "1) Approve token spending";
   if (isToken && p && S.account && p.allowanceOk === undefined) checkAllowance();
 }
 
@@ -469,7 +471,7 @@ async function checkAllowance() {
   updateButtons();
 }
 
-/* ---------- cüzdan ---------- */
+/* ---------- wallet ---------- */
 async function ensureChain() {
   const cid = await window.ethereum.request({ method: "eth_chainId" });
   if (parseInt(cid, 16) === CONFIG.CHAIN_ID) return;
@@ -521,8 +523,8 @@ async function loadToken() {
   S.token = null; $("tokenInfo").innerHTML = "";
   if (!v) { analyze(); return; }
   let addr;
-  try { addr = ethers.getAddress(v); } catch { $("tokenInfo").innerHTML = `<span class="err">Geçersiz adres.</span>`; analyze(); return; }
-  $("tokenInfo").textContent = "Token okunuyor…";
+  try { addr = ethers.getAddress(v); } catch { $("tokenInfo").innerHTML = `<span class="err">Invalid address.</span>`; analyze(); return; }
+  $("tokenInfo").textContent = "Reading token…";
   try {
     const r = new ethers.Contract(addr, ERC20_ABI, read);
     const [name, symbol, decimals] = await Promise.all([r.name(), r.symbol(), r.decimals()]);
@@ -531,13 +533,13 @@ async function loadToken() {
       contract: new ethers.Contract(addr, ERC20_ABI, S.signer || read), balance: null };
     if (S.account) S.token.balance = await r.balanceOf(S.account);
     showTokenInfo();
-  } catch { $("tokenInfo").innerHTML = `<span class="err">Bu adreste BNB Chain üzerinde bir token bulunamadı.</span>`; }
+  } catch { $("tokenInfo").innerHTML = `<span class="err">No token found at this address on BNB Chain.</span>`; }
   analyze();
 }
 function showTokenInfo() {
   const t = S.token; if (!t) return;
-  $("tokenInfo").innerHTML = `<span class="ok">✓</span> <b>${esc(t.name)}</b> (${esc(t.symbol)}) · ${t.decimals} ondalık` +
-    (t.balance != null ? ` · Bakiyeniz: <b>${fmt(t.balance, t.decimals)} ${esc(t.symbol)}</b>` : "");
+  $("tokenInfo").innerHTML = `<span class="ok">✓</span> <b>${esc(t.name)}</b> (${esc(t.symbol)}) · ${t.decimals} decimals` +
+    (t.balance != null ? ` · Your balance: <b>${fmt(t.balance, t.decimals)} ${esc(t.symbol)}</b>` : "");
 }
 
 /* ---------- approve ---------- */
@@ -546,17 +548,17 @@ async function doApprove() {
   S.busy = true; updateButtons();
   try {
     const need = p.batches.filter((b) => !b.done).reduce((a, b) => a + (p.equal ? p.amountEach * BigInt(b.rows.length) : b.rows.reduce((x, r) => x + r.amount, 0n)), 0n);
-    showMsg("Cüzdanınızda onay işlemini onaylayın…", "warn");
+    showMsg("Confirm the approval in your wallet…", "warn");
     const tx = await S.token.contract.approve(CONFIG.CONTRACT, need);
-    showMsg(`Onay işlemi gönderildi, bekleniyor… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
+    showMsg(`Approval submitted, waiting… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
     await tx.wait();
-    showMsg("Onay tamamlandı. Şimdi “Gönder”e basın.", "ok");
+    showMsg("Approval complete. Now press “Send”.", "ok");
     p.allowanceOk = undefined;
   } catch (e) { showMsg(errMsg(e), "err"); }
   S.busy = false; updateButtons();
 }
 
-/* ---------- gönderim ---------- */
+/* ---------- sending ---------- */
 async function doSend() {
   if (!S.account) { await connect(); return; }
   const p = S.plan; if (!p) return;
@@ -579,10 +581,10 @@ async function doSend() {
         if (p.equal) { fn = "sendTokenEqual"; args = [p.token.address, to, p.amountEach]; }
         else { fn = "sendToken"; args = [p.token.address, to, b.rows.map((r) => r.amount)]; }
       }
-      // Ön kontrol: işlem başarısız olacaksa cüzdanı açmadan önce sebebini göster
-      b.status = "Kontrol ediliyor…"; b.cls = "muted"; renderBatches();
+      // Pre-check: if the transaction would fail, show why before opening the wallet
+      b.status = "Checking…"; b.cls = "muted"; renderBatches();
       await msRead[fn].staticCall(...args, { value, from: S.account });
-      // Gaz kontrolü: BSC'nin işlem başı gaz sınırını aşacaksa partiyi ikiye böl
+      // Gas check: split the batch in two if it would exceed BSC's per-transaction gas limit
       let gasEst = null;
       try { gasEst = await msRead[fn].estimateGas(...args, { value, from: S.account }); } catch {}
       if (b.rows.length > 1 && (gasEst === null || gasEst > BigInt(CONFIG.TX_GAS_SAFE))) {
@@ -590,20 +592,20 @@ async function doSend() {
         p.batches.splice(i, 1,
           { rows: b.rows.slice(0, half), done: false, hash: null, status: "" },
           { rows: b.rows.slice(half), done: false, hash: null, status: "" });
-        // Bölünme sonrası hizmet ücretini yeniden hesapla ve özeti güncelle (kullanıcı ne ödeyeceğini görsün)
+        // Recalculate the service fee after splitting and refresh the summary so the user sees what they will pay
         p.fees = 0n;
         for (const x of p.batches) { x.fee = await msRead.feeFor(x.rows.length); p.fees += x.fee; }
         renderSummary();
         renderBatches(); i--; continue;
       }
-      b.status = "Cüzdanda onay bekleniyor…"; b.cls = "warn"; renderBatches();
+      b.status = "Waiting for wallet confirmation…"; b.cls = "warn"; renderBatches();
       const tx = await ms[fn](...args, { value });
-      b.hash = tx.hash; b.status = "Gönderildi, onaylanması bekleniyor…"; renderBatches();
+      b.hash = tx.hash; b.status = "Submitted, waiting for confirmation…"; renderBatches();
       const rc = await tx.wait();
-      if (rc.status !== 1) throw new Error("İşlem başarısız oldu.");
-      b.done = true; b.status = "✓ Tamamlandı"; b.cls = "ok"; renderBatches();
+      if (rc.status !== 1) throw new Error("Transaction failed.");
+      b.done = true; b.status = "✓ Completed"; b.cls = "ok"; renderBatches();
     }
-    showMsg(`🎉 Gönderim tamamlandı: ${p.rows.length} alıcı.`, "ok");
+    showMsg(`🎉 Send complete: ${p.rows.length} recipient${p.rows.length === 1 ? "" : "s"}.`, "ok");
   } catch (e) {
     const b = p.batches.find((x) => !x.done);
     if (b) { b.status = "✗ " + errMsg(e); b.cls = "err"; }
@@ -621,9 +623,9 @@ function renderBatches() {
   const p = S.plan; if (!p) return;
   $("batches").innerHTML = p.batches.map((b, i) => `
     <div class="batch">
-      <div><b>Parti ${i + 1}/${p.batches.length}</b> <span class="muted">· ${b.rows.length} alıcı</span></div>
-      <div><span class="${b.cls || "muted"}">${esc(b.status || "Sırada")}</span>
-      ${b.hash ? ` · <a href="${CONFIG.EXPLORER}/tx/${b.hash}" target="_blank" rel="noopener">BscScan'de gör</a>` : ""}</div>
+      <div><b>Batch ${i + 1}/${p.batches.length}</b> <span class="muted">· ${b.rows.length} recipients</span></div>
+      <div><span class="${b.cls || "muted"}">${esc(b.status || "Queued")}</span>
+      ${b.hash ? ` · <a href="${CONFIG.EXPLORER}/tx/${b.hash}" target="_blank" rel="noopener">View on BscScan</a>` : ""}</div>
     </div>`).join("");
 }
 
@@ -631,19 +633,19 @@ function showMsg(html, cls) { $("sendMsg").innerHTML = `<div class="box ${cls}">
 
 function errMsg(e) {
   const code = e?.code ?? e?.info?.error?.code;
-  if (code === "ACTION_REJECTED" || code === 4001) return "İşlemi cüzdanda reddettiniz.";
+  if (code === "ACTION_REJECTED" || code === 4001) return "You rejected the transaction in your wallet.";
   const map = {
-    NotEnoughBNB: "Gönderilen BNB yetersiz (gönderim + hizmet ücreti).",
-    TokenTransferFailed: "Token transferi başarısız. Onay (approve) veya token bakiyesi yetersiz olabilir.",
-    BNBTransferFailed: "Alıcılardan biri BNB kabul etmiyor (BNB almayan bir kontrat adresi olabilir). Bu adresi listeden çıkarın.",
-    ZeroAddress: "Listede sıfır adres veya MultiSender kontratının kendi adresi var.",
-    TooManyRecipients: `Bir işlemde en fazla ${CONFIG.BATCH} alıcı olabilir.`,
-    LengthMismatch: "Adres ve miktar sayısı uyuşmuyor.",
-    NotOwner: "Bu işlemi sadece kontrat sahibi yapabilir.",
-    AboveCeiling: "Ücret, kontrattaki sabit tavanın üstüne çıkamaz."
+    NotEnoughBNB: "Not enough BNB sent (amount + service fee).",
+    TokenTransferFailed: "Token transfer failed. The approval or your token balance may be insufficient.",
+    BNBTransferFailed: "One of the recipients does not accept BNB (it may be a contract that cannot receive BNB). Remove this address from the list.",
+    ZeroAddress: "The list contains the zero address or the MultiSender contract's own address.",
+    TooManyRecipients: `A transaction can have at most ${CONFIG.BATCH} recipients.`,
+    LengthMismatch: "The number of addresses and amounts do not match.",
+    NotOwner: "Only the contract owner can do this.",
+    AboveCeiling: "The fee cannot exceed the hard-coded ceiling in the contract."
   };
   let name = e?.revert?.name, args = e?.revert?.args;
-  if (!name) { // bazı cüzdanlar hata kodunu farklı yerde döndürür
+  if (!name) { // some wallets return the error data in a different place
     const cands = [e?.data, e?.info?.error?.data, e?.error?.data, e?.data?.data, e?.info?.error?.data?.data];
     const m = String(e?.message || "").match(/0x[0-9a-fA-F]{8,}/); if (m) cands.push(m[0]);
     for (const d of cands) {
@@ -651,13 +653,13 @@ function errMsg(e) {
       try { const pe = MS_IFACE.parseError(d); if (pe) { name = pe.name; args = pe.args; break; } } catch {}
     }
   }
-  if (name && map[name]) return map[name] + (args?.[0] ? ` Adres: ${args[0]}` : "");
-  if (code === "INSUFFICIENT_FUNDS" || /insufficient funds/i.test(e?.message || "")) return "Cüzdanda yeterli BNB yok (gönderim + ücret + gaz).";
+  if (name && map[name]) return map[name] + (args?.[0] ? ` Address: ${args[0]}` : "");
+  if (code === "INSUFFICIENT_FUNDS" || /insufficient funds/i.test(e?.message || "")) return "Not enough BNB in your wallet (amount + fee + gas).";
   return e?.shortMessage || e?.reason || e?.message || String(e);
 }
 
-/* ---------- onay penceresi ("Emin misiniz?") ---------- */
-function confirmBox({ title, rows, warning, checkbox, okText = "Evet, eminim", danger = false }) {
+/* ---------- confirmation dialog ("Are you sure?") ---------- */
+function confirmBox({ title, rows, warning, checkbox, okText = "Yes, I'm sure", danger = false }) {
   return new Promise((resolve) => {
     const bg = document.createElement("div");
     bg.className = "modal-bg";
@@ -667,7 +669,7 @@ function confirmBox({ title, rows, warning, checkbox, okText = "Evet, eminim", d
       ${warning ? `<div class="box ${danger ? "err" : "warn"}">${warning}</div>` : ""}
       ${checkbox ? `<label class="chk"><input type="checkbox" id="mChk"> <span>${esc(checkbox)}</span></label>` : ""}
       <div class="row" style="justify-content:flex-end;margin-top:16px">
-        <button id="mNo">Vazgeç</button>
+        <button id="mNo">Cancel</button>
         <button id="mYes" class="${danger ? "danger" : "primary"}" ${checkbox ? "disabled" : ""}>${esc(okText)}</button>
       </div></div>`;
     document.body.appendChild(bg);
@@ -679,7 +681,7 @@ function confirmBox({ title, rows, warning, checkbox, okText = "Evet, eminim", d
   });
 }
 
-/* ---------- yönetim paneli ---------- */
+/* ---------- admin panel ---------- */
 const A_ = { owner: null, receiver: null, per: null, cap: null, maxPer: null, maxCap: null };
 
 async function refreshAdmin() {
@@ -693,13 +695,13 @@ async function refreshAdmin() {
   $("adminCard").classList.toggle("hidden", !isOwner);
   if (!isOwner) return;
   $("adminInfo").innerHTML = `
-    <div>Sahip</div><div class="mono">${A_.owner}</div>
-    <div>Ücretin gittiği cüzdan</div><div class="mono">${A_.receiver}</div>
-    <div>Alıcı başı ücret</div><div>${fmt(A_.per, 18, 8)} BNB</div>
-    <div>İşlem başı tavan</div><div>${fmt(A_.cap, 18, 8)} BNB</div>`;
+    <div>Owner</div><div class="mono">${A_.owner}</div>
+    <div>Fee receiver</div><div class="mono">${A_.receiver}</div>
+    <div>Fee per recipient</div><div>${fmt(A_.per, 18, 8)} BNB</div>
+    <div>Cap per transaction</div><div>${fmt(A_.cap, 18, 8)} BNB</div>`;
   $("maxPer").textContent = fmt(A_.maxPer, 18, 8);
   $("maxCap").textContent = fmt(A_.maxCap, 18, 8);
-  $("feeInfo").textContent = `alıcı başına ${fmt(A_.per, 18, 8)} BNB, işlem başına en fazla ${fmt(A_.cap, 18, 8)} BNB.`;
+  $("feeInfo").textContent = `${fmt(A_.per, 18, 8)} BNB per recipient, at most ${fmt(A_.cap, 18, 8)} BNB per transaction.`;
 }
 
 function adminMsg(html, cls) { $("adminMsg").innerHTML = `<div class="box ${cls}">${html}</div>`; }
@@ -708,10 +710,10 @@ async function adminTx(fnName, args, label) {
   try {
     await ensureChain();
     const ms = new ethers.Contract(CONFIG.CONTRACT, MS_ABI, S.signer);
-    await msRead[fnName].staticCall(...args, { from: S.account }); // önce dene: hata varsa cüzdan açılmadan göster
-    adminMsg("Cüzdanınızda işlemi onaylayın…", "warn");
+    await msRead[fnName].staticCall(...args, { from: S.account }); // dry run first: show any error before opening the wallet
+    adminMsg("Confirm the transaction in your wallet…", "warn");
     const tx = await ms[fnName](...args);
-    adminMsg(`İşlem gönderildi, bekleniyor… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
+    adminMsg(`Transaction submitted, waiting… <a href="${CONFIG.EXPLORER}/tx/${tx.hash}" target="_blank" rel="noopener">BscScan</a>`, "warn");
     await tx.wait();
     adminMsg(`✓ ${esc(label)}`, "ok");
     await refreshAdmin();
@@ -721,54 +723,54 @@ async function adminTx(fnName, args, label) {
 async function onSetFees() {
   const parseFee = (s) => { s = s.trim(); if (/^0+([.,]0*)?$/.test(s)) return 0n; return s ? parseAmount(s, 18).v : undefined; };
   const per = parseFee($("inPer").value), cap = parseFee($("inCap").value);
-  if (per === undefined || cap === undefined) { adminMsg("Geçerli bir BNB miktarı yazın (0 = ücretsiz).", "err"); return; }
-  if (per > A_.maxPer || cap > A_.maxCap) { adminMsg("Ücret, kontrattaki sabit tavanın üstüne çıkamaz.", "err"); return; }
+  if (per === undefined || cap === undefined) { adminMsg("Enter a valid BNB amount (0 = free).", "err"); return; }
+  if (per > A_.maxPer || cap > A_.maxCap) { adminMsg("The fee cannot exceed the hard-coded ceiling in the contract.", "err"); return; }
   const ok = await confirmBox({
-    title: "Ücreti değiştirmek istediğinize emin misiniz?",
-    rows: [["Alıcı başı: şimdiki", fmt(A_.per, 18, 8) + " BNB"], ["Alıcı başı: yeni", fmt(per, 18, 8) + " BNB"],
-           ["Tavan: şimdiki", fmt(A_.cap, 18, 8) + " BNB"], ["Tavan: yeni", fmt(cap, 18, 8) + " BNB"]],
-    warning: "Yeni ücret bu işlem onaylandığı anda tüm kullanıcılar için geçerli olur."
+    title: "Are you sure you want to change the fees?",
+    rows: [["Per recipient: current", fmt(A_.per, 18, 8) + " BNB"], ["Per recipient: new", fmt(per, 18, 8) + " BNB"],
+           ["Cap: current", fmt(A_.cap, 18, 8) + " BNB"], ["Cap: new", fmt(cap, 18, 8) + " BNB"]],
+    warning: "The new fees apply to all users as soon as this transaction is confirmed."
   });
-  if (ok) await adminTx("setFees", [per, cap], "Ücret güncellendi.");
+  if (ok) await adminTx("setFees", [per, cap], "Fees updated.");
 }
 
 async function onSetReceiver() {
-  let addr; try { addr = ethers.getAddress($("inReceiver").value.trim()); } catch { adminMsg("Geçersiz adres.", "err"); return; }
-  if (addr === ZERO) { adminMsg("Sıfır adres olamaz.", "err"); return; }
+  let addr; try { addr = ethers.getAddress($("inReceiver").value.trim()); } catch { adminMsg("Invalid address.", "err"); return; }
+  if (addr === ZERO) { adminMsg("The zero address cannot be used.", "err"); return; }
   const ok = await confirmBox({
-    title: "Ücret cüzdanını değiştirmek istediğinize emin misiniz?",
-    rows: [["Şimdiki", A_.receiver], ["Yeni", addr]],
-    warning: "Bundan sonraki tüm ücretler yeni adrese gider. Adresi harf harf kontrol edin.",
-    checkbox: "Yeni adresi kontrol ettim, bu cüzdana erişimim var."
+    title: "Are you sure you want to change the fee receiver?",
+    rows: [["Current", A_.receiver], ["New", addr]],
+    warning: "All future fees will go to the new address. Check the address character by character.",
+    checkbox: "I have checked the new address and I control this wallet."
   });
-  if (ok) await adminTx("setFeeReceiver", [addr], "Ücret cüzdanı değiştirildi.");
+  if (ok) await adminTx("setFeeReceiver", [addr], "Fee receiver changed.");
 }
 
 async function onTransfer() {
   const raw = $("inOwner").value.trim();
-  let addr; try { addr = ethers.getAddress(raw); } catch { adminMsg("Geçersiz adres.", "err"); return; }
+  let addr; try { addr = ethers.getAddress(raw); } catch { adminMsg("Invalid address.", "err"); return; }
   const renounce = addr === ZERO;
-  if (addr.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { adminMsg("Sahiplik kontratın kendisine devredilemez.", "err"); return; }
+  if (addr.toLowerCase() === CONFIG.CONTRACT.toLowerCase()) { adminMsg("Ownership cannot be transferred to the contract itself.", "err"); return; }
   const ok1 = await confirmBox({
-    title: renounce ? "Sahipliği tamamen bırakmak istediğinize emin misiniz?" : "Sahipliği devretmek istediğinize emin misiniz?",
-    rows: [["Şimdiki sahip", A_.owner], ["Yeni sahip", renounce ? "YOK (sahiplik bırakılır)" : addr]],
+    title: renounce ? "Are you sure you want to renounce ownership completely?" : "Are you sure you want to transfer ownership?",
+    rows: [["Current owner", A_.owner], ["New owner", renounce ? "NONE (ownership renounced)" : addr]],
     warning: renounce
-      ? "<b>Bu işlem geri alınamaz.</b> Ücretler şu anki haliyle sonsuza kadar sabit kalır, kimse değiştiremez."
-      : "<b>Bu işlem geri alınamaz.</b> Tek adımlıdır: yanlış adres yazarsanız kontratın kontrolünü kalıcı olarak kaybedersiniz.",
-    checkbox: renounce ? "Sahipliği bıraktığımda bir daha ücret değiştiremeyeceğimi anlıyorum." : "Adresi harf harf kontrol ettim, bu cüzdana erişimim var.",
-    okText: "Devam", danger: true
+      ? "<b>This cannot be undone.</b> The fees stay as they are now forever; nobody can change them."
+      : "<b>This cannot be undone.</b> It is a single step: if you enter a wrong address you permanently lose control of the contract.",
+    checkbox: renounce ? "I understand that after renouncing I can never change the fees again." : "I have checked the address character by character and I control this wallet.",
+    okText: "Continue", danger: true
   });
   if (!ok1) return;
   const ok2 = await confirmBox({
-    title: "Son onay",
-    rows: [["Yeni sahip", renounce ? "YOK" : addr]],
-    warning: "Gerçekten emin misiniz? Bu adımdan sonra cüzdanınız işlemi imzalamanızı isteyecek.",
-    okText: "Evet, devret", danger: true
+    title: "Final confirmation",
+    rows: [["New owner", renounce ? "NONE" : addr]],
+    warning: "Are you really sure? After this step your wallet will ask you to sign the transaction.",
+    okText: "Yes, transfer", danger: true
   });
-  if (ok2) await adminTx("transferOwnership", [addr], renounce ? "Sahiplik bırakıldı." : "Sahiplik devredildi.");
+  if (ok2) await adminTx("transferOwnership", [addr], renounce ? "Ownership renounced." : "Ownership transferred.");
 }
 
-/* ---------- arayüz olayları ---------- */
+/* ---------- UI events ---------- */
 function seg(id, key, after) {
   $(id).querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
     if (S.busy) return;
@@ -785,10 +787,10 @@ seg("segAmount", "amountMode", () => {
   $("equalArea").classList.toggle("hidden", !eq);
   $("helpEqual").classList.toggle("hidden", !eq);
   $("helpDiff").classList.toggle("hidden", eq);
-  $("listLabel").textContent = eq ? "Her satıra bir adres" : "Her satıra bir alıcı: adres, miktar";
+  $("listLabel").textContent = eq ? "One address per line" : "One recipient per line: address, amount";
   $("list").placeholder = eq
     ? "0x1111111111111111111111111111111111111111\n0x2222222222222222222222222222222222222222\n0x3333333333333333333333333333333333333333"
-    : "0x1111111111111111111111111111111111111111, 1.5\n0x2222222222222222222222222222222222222222, 20\n0x3333333333333333333333333333333333333333; 0,25";
+    : "0x1111111111111111111111111111111111111111, 1.5\n0x2222222222222222222222222222222222222222, 20\n0x3333333333333333333333333333333333333333; 0.25";
   analyze();
 });
 
@@ -810,20 +812,20 @@ $("file").addEventListener("change", async (ev) => {
 $("btnTemplate").addEventListener("click", () => {
   const eq = S.amountMode === "equal";
   const csv = eq
-    ? "adres\n0x1111111111111111111111111111111111111111\n0x2222222222222222222222222222222222222222\n"
-    : "adres,miktar\n0x1111111111111111111111111111111111111111,1.5\n0x2222222222222222222222222222222222222222,20\n";
+    ? "address\n0x1111111111111111111111111111111111111111\n0x2222222222222222222222222222222222222222\n"
+    : "address,amount\n0x1111111111111111111111111111111111111111,1.5\n0x2222222222222222222222222222222222222222,20\n";
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  a.download = eq ? "multisender-adresler.csv" : "multisender-ornek.csv"; a.click();
+  a.download = eq ? "multisender-addresses.csv" : "multisender-sample.csv"; a.click();
 });
 $("btnClean").addEventListener("click", () => {
   const { rows } = parseList($("list").value, S.amountMode === "equal", decs());
   $("list").value = rows.map((r) => r.raw.trim()).join("\n"); analyze();
 });
 
-/* ---------- başlangıç ---------- */
+/* ---------- init ---------- */
 (async function init() {
-  $("contractLink").textContent = configured ? CONFIG.CONTRACT : "henüz ayarlanmadı";
+  $("contractLink").textContent = configured ? CONFIG.CONTRACT : "not set yet";
   if (configured) $("contractLink").href = `${CONFIG.EXPLORER}/address/${CONFIG.CONTRACT}#code`;
   else $("cfgWarn").classList.remove("hidden");
   const here = location.host + location.pathname;
@@ -832,8 +834,8 @@ $("btnClean").addEventListener("click", () => {
   try {
     if (!configured) throw 0;
     const [per, cap] = await Promise.all([msRead.feePerRecipient(), msRead.feeCap()]);
-    $("feeInfo").textContent = `alıcı başına ${fmt(per, 18, 8)} BNB, işlem başına en fazla ${fmt(cap, 18, 8)} BNB.`;
-  } catch { $("feeInfo").textContent = "kontrat bağlanınca gösterilir."; }
+    $("feeInfo").textContent = `${fmt(per, 18, 8)} BNB per recipient, at most ${fmt(cap, 18, 8)} BNB per transaction.`;
+  } catch { $("feeInfo").textContent = "shown once the contract is reachable."; }
   updateButtons();
 })();
 </script>
